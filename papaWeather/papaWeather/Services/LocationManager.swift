@@ -30,10 +30,6 @@ final class LocationManager: NSObject {
     }
 
     func currentLocation() async throws -> CLLocation {
-        guard CLLocationManager.locationServicesEnabled() else {
-            throw LocationError.unavailable
-        }
-
         return try await withCheckedThrowingContinuation { [weak self] (cont: CheckedContinuation<CLLocation, Error>) in
             guard let self else {
                 cont.resume(throwing: LocationError.unavailable)

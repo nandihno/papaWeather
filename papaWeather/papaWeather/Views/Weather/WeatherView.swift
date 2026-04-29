@@ -21,6 +21,8 @@ struct WeatherView: View {
     @State private var analysisResult: String? = nil
     @State private var showAnalysis = false
     @State private var showSettings = false
+    @State private var locality: String? = nil
+    @State private var fetchTime: String? = nil
 
     private var aiProvider: AIProvider {
         AIProvider(rawValue: aiProviderRaw) ?? .appleIntelligence
@@ -37,19 +39,24 @@ struct WeatherView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
-                    fetchButton
-                    statusBanner
-                    WeatherCard(weather: weather, title: "Weather Station")
-                    HourlyForecastCard(hourly: hourlyForecast)
-                    ForecastCard(forecast: forecastInfo, debugSummary: forecastSummary)
-                    weatherAnalyseCard
-                }
-                .padding()
+            TabView {
+                stationTab
+                    .tabItem {
+                        Label("Station", systemImage: "thermometer.medium")
+                    }
+
+                hourlyTab
+                    .tabItem {
+                        Label("Hourly", systemImage: "clock")
+                    }
+
+                dailyTab
+                    .tabItem {
+                        Label("Daily", systemImage: "calendar")
+                    }
             }
-            .refreshable { await performFetch() }
             .navigationTitle("Weather")
+            .navigationBarTitleDisplayMode(.inline)
             .task {
                 guard !hasLoaded else { return }
                 await performFetch()
@@ -57,6 +64,22 @@ struct WeatherView: View {
             .sheet(isPresented: $showAnalysis) { analysisSheet }
             .sheet(isPresented: $showSettings) { SettingsView() }
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    VStack(spacing: 1) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "location.fill")
+                                .font(.system(size: 10))
+                                .foregroundStyle(palette.textSecondary)
+                            Text(locality ?? "Weather")
+                                .font(.transit(16, weight: .bold))
+                        }
+                        if let fetchTime {
+                            Text(fetchTime)
+                                .font(.transit(11, weight: .medium))
+                                .foregroundStyle(palette.textSecondary)
+                        }
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showSettings = true } label: {
                         Image(systemName: "gearshape.fill")
@@ -65,6 +88,45 @@ struct WeatherView: View {
             }
         }
         .screenTheme(AppTheme.weather)
+    }
+
+    private var stationTab: some View {
+        refreshableWeatherTab(spacing: 24) {
+            fetchButton
+            statusBanner
+            WeatherCard(weather: weather, title: "Weather Station")
+            weatherAnalyseCard
+        }
+    }
+
+    private var hourlyTab: some View {
+        refreshableWeatherTab(spacing: 16) {
+            HourlyTabView(hourly: hourlyForecast)
+        }
+    }
+
+    private var dailyTab: some View {
+        refreshableWeatherTab(spacing: 24) {
+            ForecastCard(forecast: forecastInfo, debugSummary: forecastSummary)
+        }
+    }
+
+    private func refreshableWeatherTab<Content: View>(
+        spacing: CGFloat,
+        @ViewBuilder content: @escaping () -> Content
+    ) -> some View {
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(spacing: spacing) {
+                    content()
+                }
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: proxy.size.height + 1, alignment: .top)
+                .padding()
+            }
+            .scrollBounceBehavior(.always, axes: .vertical)
+            .refreshable { fetchWeather() }
+        }
     }
 
     private var fetchButton: some View {
@@ -246,42 +308,54 @@ struct WeatherView: View {
         }
     }
 
+    @MainActor
     private func fetchWeather() {
         Task { await performFetch() }
     }
 
+    @MainActor
     private func performFetch() async {
         guard !isLoading else { return }
+        print("↻ Refreshing weather bundle...")
         isLoading = true
         defer { isLoading = false }
 
         do {
             let bundle = try await WeatherService.shared.fetchWeatherBundle()
             weather = bundle.weather
+
             hourlyForecast = bundle.hourlyForecast
+            forecastInfo = bundle.forecast
+
             if let forecast = bundle.forecast {
-                forecastInfo = forecast
                 forecastSummary = forecast.debugSummary(limit: 7)
                 print("🌤️ 7-day forecast (\(forecast.locationName), \(forecast.geohash))")
                 print(forecastSummary)
             } else {
-                forecastInfo = nil
                 forecastSummary = "Forecast unavailable for current location."
             }
+
+            if let name = bundle.locality { locality = name }
             let stamp = Date().formatted(date: .omitted, time: .shortened)
+            fetchTime = "Updated \(stamp)"
             statusMessage = "Last updated at \(stamp)"
             usingFallbackData = false
+            analysisResult = nil
             hasLoaded = true
+            print("✓ Weather refresh completed at \(stamp)")
         } catch is CancellationError {
             return
         } catch {
+            let stamp = Date().formatted(date: .omitted, time: .shortened)
             if !hasLoaded {
                 weather = MockWeatherService.mockWeather()
                 forecastInfo = nil
             }
             forecastSummary = "Forecast unavailable (\(error.localizedDescription))"
             statusMessage = "Refresh failed: \(error.localizedDescription)"
+            fetchTime = "Refresh failed \(stamp)"
             usingFallbackData = true
+            print("✕ Weather refresh failed: \(error.localizedDescription)")
         }
     }
 }

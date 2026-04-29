@@ -41,15 +41,21 @@ struct WeatherInfo: Identifiable {
 
 struct HourlyForecastHour: Identifiable {
     let id = UUID()
+    let rawDate: Date
     let time: String
     let temp: Int
     let feelsLike: Int
     let rainChance: Int
+    let windSpeedKmh: Int
+    let windDirection: String
+    let gustSpeedKmh: Int
+    let relativeHumidity: Int
     let iconDescriptor: String
     let isNight: Bool
 }
 
 struct HourlyForecastInfo {
+    let current: HourlyForecastHour?
     let hours: [HourlyForecastHour]
 }
 
@@ -77,6 +83,8 @@ struct DailyForecastDay: Identifiable {
     let fireDanger: String?
     let uvCategory: String?
     let now: DailyForecastNow?
+    let sunriseDate: Date?
+    let sunsetDate: Date?
 }
 
 struct DailyForecastInfo {

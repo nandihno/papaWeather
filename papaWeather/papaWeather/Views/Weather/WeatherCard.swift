@@ -9,8 +9,6 @@ import Charts
 struct WeatherCard: View {
     let weather: WeatherInfo
     var title: String = "Weather"
-    @State private var showCharts = false
-
     private enum TemperatureSeries: CaseIterable {
         case feelsLike
         case airTemp
@@ -124,13 +122,10 @@ struct WeatherCard: View {
 
                 if chartObs.count >= 2 {
                     Divider()
-                    DisclosureGroup(isExpanded: $showCharts) {
-                        observationCharts.padding(.top, 6)
-                    } label: {
-                        Label("Last 5 hours", systemImage: "chart.xyaxis.line")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                    }
+                    Label("Last 8 hours", systemImage: "chart.xyaxis.line")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    observationCharts.padding(.top, 6)
                 }
             }
         }

@@ -53,6 +53,11 @@ struct ForecastCard: View {
                         rainChanceChart
                     }
 
+                    if days.contains(where: { $0.sunriseDate != nil }) {
+                        Divider()
+                        daylightChart
+                    }
+
                     if let id = selectedDayId, let day = days.first(where: { $0.id == id }) {
                         Divider()
                         ForecastSelectedDayDetail(day: day)
@@ -120,6 +125,80 @@ struct ForecastCard: View {
         let opacity = 0.3 + 0.7 * Double(chance) / 100
         return LinearGradient(colors: [.blue.opacity(opacity), .blue.opacity(opacity * 0.6)],
                               startPoint: .top, endPoint: .bottom)
+    }
+
+    private var daylightChart: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 12) {
+                Label("Sunrise", systemImage: "sunrise.fill")
+                    .foregroundStyle(.orange)
+                Label("Sunset", systemImage: "sunset.fill")
+                    .foregroundStyle(.indigo)
+            }
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.tertiary)
+
+            Chart {
+                ForEach(days) { day in
+                    if let rise = day.sunriseDate, let set = day.sunsetDate {
+                        BarMark(
+                            x: .value("Day", shortDayLabel(day.date)),
+                            yStart: .value("Sunrise", hoursFromMidnight(rise)),
+                            yEnd:   .value("Sunset",  hoursFromMidnight(set))
+                        )
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.orange.opacity(0.7), .yellow.opacity(0.5), .indigo.opacity(0.6)],
+                                startPoint: .bottom, endPoint: .top
+                            )
+                        )
+                        .cornerRadius(4)
+
+                        PointMark(
+                            x: .value("Day", shortDayLabel(day.date)),
+                            y: .value("Sunrise", hoursFromMidnight(rise))
+                        )
+                        .foregroundStyle(.orange)
+                        .symbolSize(30)
+
+                        PointMark(
+                            x: .value("Day", shortDayLabel(day.date)),
+                            y: .value("Sunset", hoursFromMidnight(set))
+                        )
+                        .foregroundStyle(.indigo)
+                        .symbolSize(30)
+                    }
+                }
+            }
+            .chartYScale(domain: 4.0...21.0)
+            .chartYAxis {
+                AxisMarks(values: [6.0, 12.0, 18.0]) { value in
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                    AxisValueLabel {
+                        if let v = value.as(Double.self) {
+                            Text(hourLabel(v)).font(.caption2)
+                        }
+                    }
+                }
+            }
+            .chartXAxis {
+                AxisMarks { _ in AxisValueLabel().font(.caption2) }
+            }
+            .frame(height: 100)
+        }
+    }
+
+    private func hoursFromMidnight(_ date: Date) -> Double {
+        let cal = Calendar.current
+        let c = cal.dateComponents([.hour, .minute], from: date)
+        return Double(c.hour ?? 0) + Double(c.minute ?? 0) / 60.0
+    }
+
+    private func hourLabel(_ hours: Double) -> String {
+        let h = Int(hours)
+        if h == 0 || h == 24 { return "12 AM" }
+        if h == 12 { return "12 PM" }
+        return h < 12 ? "\(h) AM" : "\(h - 12) PM"
     }
 
     private func shortDayLabel(_ isoDate: String) -> String {
@@ -266,6 +345,17 @@ private struct ForecastSelectedDayDetail: View {
                 }
             }
 
+            if day.sunriseDate != nil || day.sunsetDate != nil {
+                HStack(spacing: 10) {
+                    if let rise = day.sunriseDate {
+                        StatPill(label: "Sunrise", value: formatSunTime(rise), symbol: "sunrise.fill")
+                    }
+                    if let set = day.sunsetDate {
+                        StatPill(label: "Sunset", value: formatSunTime(set), symbol: "sunset.fill")
+                    }
+                }
+            }
+
             if let detail = day.extendedText?.trimmingCharacters(in: .whitespacesAndNewlines), !detail.isEmpty {
                 Text(detail)
                     .font(.caption2)
@@ -305,6 +395,13 @@ private struct ForecastSelectedDayDetail: View {
         outFmt.dateFormat = "EEEE d MMM"
         if let d = inFmt.date(from: isoDate) { return outFmt.string(from: d) }
         return isoDate
+    }
+
+    private func formatSunTime(_ date: Date) -> String {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "h:mm a"
+        fmt.timeZone = .current
+        return fmt.string(from: date)
     }
 }
 

@@ -71,6 +71,7 @@ struct BOMDailyForecastResponse: Decodable {
 struct BOMDailyForecastDay: Decodable {
     let rain: BOMForecastRain?
     let uv: BOMForecastUV?
+    let astronomical: BOMForecastAstronomical?
     let date: String
     let tempMax: Int?
     let tempMin: Int?
@@ -82,6 +83,7 @@ struct BOMDailyForecastDay: Decodable {
     enum CodingKeys: String, CodingKey {
         case rain
         case uv
+        case astronomical
         case date
         case tempMax = "temp_max"
         case tempMin = "temp_min"
@@ -89,6 +91,16 @@ struct BOMDailyForecastDay: Decodable {
         case shortText = "short_text"
         case fireDanger = "fire_danger"
         case now
+    }
+}
+
+struct BOMForecastAstronomical: Decodable {
+    let sunriseTime: String?
+    let sunsetTime: String?
+
+    enum CodingKeys: String, CodingKey {
+        case sunriseTime = "sunrise_time"
+        case sunsetTime  = "sunset_time"
     }
 }
 
@@ -124,15 +136,17 @@ struct BOMHourlyForecastPoint: Decodable {
     let temp: Int?
     let tempFeelsLike: Int?
     let wind: BOMHourlyWind?
+    let relativeHumidity: Int?
     let iconDescriptor: String?
     let time: String
     let isNight: Bool?
 
     enum CodingKeys: String, CodingKey {
         case rain, temp, wind, time
-        case tempFeelsLike = "temp_feels_like"
-        case iconDescriptor = "icon_descriptor"
-        case isNight = "is_night"
+        case tempFeelsLike    = "temp_feels_like"
+        case relativeHumidity = "relative_humidity"
+        case iconDescriptor   = "icon_descriptor"
+        case isNight          = "is_night"
     }
 }
 
@@ -142,10 +156,12 @@ struct BOMHourlyRain: Decodable {
 
 struct BOMHourlyWind: Decodable {
     let speedKilometre: Int?
+    let gustSpeedKilometre: Int?
     let direction: String?
 
     enum CodingKeys: String, CodingKey {
-        case speedKilometre = "speed_kilometre"
+        case speedKilometre     = "speed_kilometre"
+        case gustSpeedKilometre = "gust_speed_kilometre"
         case direction
     }
 }
