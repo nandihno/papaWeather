@@ -30,6 +30,7 @@ enum WeatherError: LocalizedError {
 final class WeatherService {
     static let shared = WeatherService()
     private static let weatherBaseURL = "https://api.weather.bom.gov.au/v1"
+    private static let astronomicalURL = URL(string: "https://api.geodesyapps.ga.gov.au/astronomical/submitRequest")!
 
     private let locationManager = LocationManager()
     private let session: URLSession = {
@@ -52,6 +53,7 @@ final class WeatherService {
         let weather: WeatherInfo
         let forecast: DailyForecastInfo?
         let hourlyForecast: HourlyForecastInfo?
+        let astronomy: AstronomicalInfo?
         let locality: String?
     }
 
@@ -67,12 +69,20 @@ final class WeatherService {
         async let weatherTask = fetchWeather(for: deviceLocation)
         async let forecastTask = fetchDailyForecast(bomLocation: bomLocation)
         async let hourlyTask = fetchHourlyForecast(bomLocation: bomLocation)
+        async let astronomyTask = fetchAstronomy(for: deviceLocation)
         async let localityTask = fetchLocality(for: deviceLocation)
         let weather = try await weatherTask
         let forecast = try? await forecastTask
         let hourly = try? await hourlyTask
+        let astronomy = try? await astronomyTask
         let locality = await localityTask
-        return WeatherBundle(weather: weather, forecast: forecast, hourlyForecast: hourly, locality: locality)
+        return WeatherBundle(
+            weather: weather,
+            forecast: forecast,
+            hourlyForecast: hourly,
+            astronomy: astronomy,
+            locality: locality
+        )
     }
 
     func fetchWeather() async throws -> WeatherInfo {
@@ -234,6 +244,100 @@ final class WeatherService {
         return HourlyForecastInfo(current: current, hours: hours)
     }
 
+    private func fetchAstronomy(for deviceLocation: CLLocation) async throws -> AstronomicalInfo {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: Date())
+        let dates = (0..<10).compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
+        var days: [AstronomicalDay] = []
+        var latitude = ""
+        var longitude = ""
+        var timeZoneDescription = Self.timeZoneDescription(for: start)
+
+        for date in dates {
+            do {
+                let response = try await fetchAstronomicalDay(for: deviceLocation, date: date)
+                if !response.latitude.isEmpty { latitude = response.latitude }
+                if !response.longitude.isEmpty { longitude = response.longitude }
+                if !response.timeZoneDescription.isEmpty { timeZoneDescription = response.timeZoneDescription }
+                days.append(response.day)
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                continue
+            }
+        }
+
+        guard !days.isEmpty else { throw WeatherError.noForecastLocation }
+
+        return AstronomicalInfo(
+            latitude: latitude,
+            longitude: longitude,
+            timeZoneDescription: timeZoneDescription,
+            days: days
+        )
+    }
+
+    private func fetchAstronomicalDay(for location: CLLocation, date: Date) async throws -> AstronomicalDayResponse {
+        var request = URLRequest(url: Self.astronomicalURL)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 15
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.httpBody = try JSONEncoder().encode(
+            AstronomicalSubmitRequest(
+                type: "sunrisenset",
+                query: Self.astronomicalQuery(for: location.coordinate, date: date)
+            )
+        )
+
+        let rawData: Data
+        let response: URLResponse
+        do {
+            (rawData, response) = try await session.data(for: request)
+        } catch {
+            try rethrowIfCancelled(error)
+            throw WeatherError.network(error)
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200..<300).contains(httpResponse.statusCode) else {
+            throw WeatherError.noForecastLocation
+        }
+
+        let payload: AstronomicalSubmitResponse
+        do {
+            payload = try JSONDecoder().decode(AstronomicalSubmitResponse.self, from: rawData)
+        } catch {
+            throw WeatherError.decoding(error)
+        }
+
+        guard let event = payload.response.events.first else {
+            throw WeatherError.noForecastLocation
+        }
+
+        let day = AstronomicalDay(
+            id: Self.isoDay(from: date),
+            date: date,
+            sunriseDate: Self.astronomicalDate(
+                event.rise,
+                on: date,
+                dayMarker: event.riseDay
+            ),
+            sunsetDate: Self.astronomicalDate(
+                event.sunset,
+                on: date,
+                dayMarker: event.setDay
+            )
+        )
+
+        return AstronomicalDayResponse(
+            day: day,
+            latitude: payload.response.latitude,
+            longitude: payload.response.longitude,
+            timeZoneDescription: event.timeZone
+        )
+    }
+
     // MARK: - Mapping
 
     private func mapToWeatherInfo(response: BOMResponse, fallbackTitle: String) -> WeatherInfo {
@@ -318,4 +422,132 @@ final class WeatherService {
         }
         return String(value.prefix(10))
     }
+
+    private static func isoDay(from date: Date) -> String {
+        let fmt = DateFormatter()
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+        fmt.calendar = Calendar(identifier: .gregorian)
+        fmt.dateFormat = "yyyy-MM-dd"
+        return fmt.string(from: date)
+    }
+
+    private static func astronomicalQuery(for coordinate: CLLocationCoordinate2D, date: Date) -> String {
+        let latitude = degreesAndMinutes(for: coordinate.latitude)
+        let longitude = degreesAndMinutes(for: coordinate.longitude)
+        return [
+            "longdeg=\(longitude.degrees)",
+            "longmin=\(longitude.minutes)",
+            "latdeg=\(latitude.degrees)",
+            "latmin=\(latitude.minutes)",
+            "location=",
+            "longhemi=\(coordinate.longitude < 0 ? "West" : "East")",
+            "lathemi=\(coordinate.latitude < 0 ? "South" : "North")",
+            "loc=yes",
+            "timezone=\(timeZoneQueryValue(for: date))",
+            "date=\(astronomicalDateString(from: date))",
+            "Event=1"
+        ].joined(separator: "&")
+    }
+
+    private static func degreesAndMinutes(for value: Double) -> (degrees: Int, minutes: Int) {
+        var degrees = Int(value.rounded(.towardZero))
+        var minutes = Int((abs(value - Double(degrees)) * 60).rounded())
+
+        if minutes == 60 {
+            minutes = 0
+            degrees += value < 0 ? -1 : 1
+        }
+
+        return (degrees, minutes)
+    }
+
+    private static func astronomicalDateString(from date: Date) -> String {
+        let fmt = DateFormatter()
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+        fmt.calendar = Calendar(identifier: .gregorian)
+        fmt.dateFormat = "dd/MM/yyyy"
+        return fmt.string(from: date)
+    }
+
+    private static func timeZoneQueryValue(for date: Date) -> String {
+        let hours = Double(TimeZone.current.secondsFromGMT(for: date)) / 3600.0
+        var value = String(format: "%.2f", hours)
+        while value.contains(".") && value.last == "0" {
+            value.removeLast()
+        }
+        if value.last == "." { value.removeLast() }
+        return value
+    }
+
+    private static func timeZoneDescription(for date: Date) -> String {
+        let hours = Double(TimeZone.current.secondsFromGMT(for: date)) / 3600.0
+        return String(format: "%+.2f hours", hours)
+    }
+
+    private static func astronomicalDate(
+        _ time: String?,
+        on date: Date,
+        dayMarker: String?
+    ) -> Date? {
+        guard let time = time?.trimmingCharacters(in: .whitespacesAndNewlines),
+              time.count == 4,
+              let hour = Int(time.prefix(2)),
+              let minute = Int(time.suffix(2)) else {
+            return nil
+        }
+
+        var calendar = Calendar.current
+        calendar.timeZone = .current
+        var components = calendar.dateComponents([.year, .month, .day], from: date)
+        components.hour = hour
+        components.minute = minute
+        guard var result = calendar.date(from: components) else { return nil }
+
+        let marker = dayMarker?.uppercased() ?? "SAME"
+        if marker.contains("NEXT") {
+            result = calendar.date(byAdding: .day, value: 1, to: result) ?? result
+        } else if marker.contains("PREV") {
+            result = calendar.date(byAdding: .day, value: -1, to: result) ?? result
+        }
+
+        return result
+    }
+}
+
+private struct AstronomicalSubmitRequest: Encodable {
+    let type: String
+    let query: String
+}
+
+private struct AstronomicalSubmitResponse: Decodable {
+    let response: AstronomicalResponse
+}
+
+private struct AstronomicalResponse: Decodable {
+    let latitude: String
+    let longitude: String
+    let events: [AstronomicalEvent]
+}
+
+private struct AstronomicalEvent: Decodable {
+    let timeZone: String
+    let rise: String?
+    let riseDay: String?
+    let sunset: String?
+    let setDay: String?
+
+    enum CodingKeys: String, CodingKey {
+        case timeZone = "time_zone"
+        case rise
+        case riseDay = "rise_day"
+        case sunset = "set"
+        case setDay = "set_day"
+    }
+}
+
+private struct AstronomicalDayResponse {
+    let day: AstronomicalDay
+    let latitude: String
+    let longitude: String
+    let timeZoneDescription: String
 }

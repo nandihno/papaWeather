@@ -12,6 +12,7 @@ struct WeatherView: View {
     @State private var weather = MockWeatherService.mockWeather()
     @State private var forecastInfo: DailyForecastInfo?
     @State private var hourlyForecast: HourlyForecastInfo?
+    @State private var astronomyInfo: AstronomicalInfo?
     @State private var forecastSummary = "No forecast loaded yet."
     @State private var isLoading = false
     @State private var hasLoaded = false
@@ -53,6 +54,11 @@ struct WeatherView: View {
                 dailyTab
                     .tabItem {
                         Label("Daily", systemImage: "calendar")
+                    }
+
+                astroTab
+                    .tabItem {
+                        Label("Astro", systemImage: "sun.horizon.fill")
                     }
             }
             .navigationTitle("Weather")
@@ -108,6 +114,12 @@ struct WeatherView: View {
     private var dailyTab: some View {
         refreshableWeatherTab(spacing: 24) {
             ForecastCard(forecast: forecastInfo, debugSummary: forecastSummary)
+        }
+    }
+
+    private var astroTab: some View {
+        refreshableWeatherTab(spacing: 24) {
+            AstroTabView(astronomy: astronomyInfo)
         }
     }
 
@@ -326,6 +338,7 @@ struct WeatherView: View {
 
             hourlyForecast = bundle.hourlyForecast
             forecastInfo = bundle.forecast
+            astronomyInfo = bundle.astronomy
 
             if let forecast = bundle.forecast {
                 forecastSummary = forecast.debugSummary(limit: 7)
@@ -350,6 +363,7 @@ struct WeatherView: View {
             if !hasLoaded {
                 weather = MockWeatherService.mockWeather()
                 forecastInfo = nil
+                astronomyInfo = nil
             }
             forecastSummary = "Forecast unavailable (\(error.localizedDescription))"
             statusMessage = "Refresh failed: \(error.localizedDescription)"

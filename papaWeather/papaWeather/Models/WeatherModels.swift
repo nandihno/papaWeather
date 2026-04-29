@@ -59,6 +59,28 @@ struct HourlyForecastInfo {
     let hours: [HourlyForecastHour]
 }
 
+// MARK: - Astronomy
+
+struct AstronomicalDay: Identifiable {
+    let id: String
+    let date: Date
+    let sunriseDate: Date?
+    let sunsetDate: Date?
+
+    var daylightMinutes: Int? {
+        guard let sunriseDate, let sunsetDate else { return nil }
+        let seconds = sunsetDate.timeIntervalSince(sunriseDate)
+        return seconds > 0 ? Int(seconds / 60) : nil
+    }
+}
+
+struct AstronomicalInfo {
+    let latitude: String
+    let longitude: String
+    let timeZoneDescription: String
+    let days: [AstronomicalDay]
+}
+
 // MARK: - Daily Forecast
 
 struct DailyForecastNow {
