@@ -155,6 +155,7 @@ private struct TransitCardModifier: ViewModifier {
 private struct TransitScreenModifier: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
     let theme: ThemeSet
+    let backgroundOverride: LinearGradient?
 
     private var palette: ThemePalette { theme.palette(for: colorScheme) }
 
@@ -163,9 +164,8 @@ private struct TransitScreenModifier: ViewModifier {
             .environment(\.themePalette, palette)
             .foregroundStyle(palette.textPrimary)
             .tint(palette.accent)
-            .background(palette.screenBackground.ignoresSafeArea())
-            .toolbarBackground(palette.backgroundBase, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
+            .background((backgroundOverride ?? palette.screenBackground).ignoresSafeArea())
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbarColorScheme(colorScheme, for: .navigationBar)
     }
 }
@@ -190,7 +190,7 @@ extension View {
         modifier(TransitCardModifier())
     }
 
-    func screenTheme(_ theme: ThemeSet) -> some View {
-        modifier(TransitScreenModifier(theme: theme))
+    func screenTheme(_ theme: ThemeSet, backgroundOverride: LinearGradient? = nil) -> some View {
+        modifier(TransitScreenModifier(theme: theme, backgroundOverride: backgroundOverride))
     }
 }

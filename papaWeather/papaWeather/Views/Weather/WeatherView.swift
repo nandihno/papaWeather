@@ -37,6 +37,9 @@ struct WeatherView: View {
     private var palette: ThemePalette {
         AppTheme.weather.palette(for: colorScheme)
     }
+    private var conditionBackground: LinearGradient? {
+        WeatherBackground.gradient(for: hourlyForecast?.current, colorScheme: colorScheme)
+    }
 
     var body: some View {
         NavigationStack {
@@ -93,7 +96,10 @@ struct WeatherView: View {
                 }
             }
         }
-        .screenTheme(AppTheme.weather)
+        .screenTheme(AppTheme.weather, backgroundOverride: conditionBackground)
+        .animation(.easeInOut(duration: 0.6), value: hourlyForecast?.current?.iconDescriptor)
+        .animation(.easeInOut(duration: 0.6), value: hourlyForecast?.current?.isNight)
+        .animation(.easeInOut(duration: 0.6), value: hourlyForecast?.current?.temp)
     }
 
     private var stationTab: some View {
@@ -136,9 +142,11 @@ struct WeatherView: View {
                 .frame(minHeight: proxy.size.height + 1, alignment: .top)
                 .padding()
             }
+            .scrollContentBackground(.hidden)
             .scrollBounceBehavior(.always, axes: .vertical)
             .refreshable { fetchWeather() }
         }
+        .background((conditionBackground ?? palette.screenBackground).ignoresSafeArea())
     }
 
     private var fetchButton: some View {
