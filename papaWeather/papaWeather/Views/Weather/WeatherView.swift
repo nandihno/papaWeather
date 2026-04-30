@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import FoundationModels
 
 struct WeatherView: View {
     @AppStorage("claudeApiKey") private var claudeApiKey: String = ""
@@ -21,10 +22,19 @@ struct WeatherView: View {
     @State private var isAnalysing = false
     @State private var analysisResult: String? = nil
     @State private var showAnalysis = false
+    @State private var pressureInsight: String? = nil
+    @State private var pressureInsightError: String? = nil
+    @State private var isAnalysingPressure = false
+    @State private var humidityInsight: String? = nil
+    @State private var humidityInsightError: String? = nil
+    @State private var isAnalysingHumidity = false
     @State private var showSettings = false
     @State private var locality: String? = nil
     @State private var fetchTime: String? = nil
 
+    private var appleIntelligenceAvailable: Bool {
+        SystemLanguageModel.default.availability == .available
+    }
     private var aiProvider: AIProvider {
         AIProvider(rawValue: aiProviderRaw) ?? .appleIntelligence
     }
@@ -107,6 +117,18 @@ struct WeatherView: View {
             fetchButton
             statusBanner
             WeatherCard(weather: weather, title: "Weather Station")
+            if appleIntelligenceAvailable {
+                PressureInsightCard(
+                    isLoading: isAnalysingPressure,
+                    insight: pressureInsight,
+                    errorMessage: pressureInsightError
+                )
+                HumidityInsightCard(
+                    isLoading: isAnalysingHumidity,
+                    insight: humidityInsight,
+                    errorMessage: humidityInsightError
+                )
+            }
             weatherAnalyseCard
         }
     }
@@ -301,6 +323,34 @@ struct WeatherView: View {
         return sections.isEmpty ? [WeatherParsedSection(title: "", body: text)] : sections
     }
 
+    @MainActor
+    private func runPressureAnalysis(observations: [WeatherObservation]) async {
+        guard !observations.isEmpty else { return }
+        isAnalysingPressure = true
+        defer { isAnalysingPressure = false }
+        do {
+            pressureInsight = try await AppleIntelligenceService.analysePressure(observations: observations)
+            pressureInsightError = nil
+        } catch {
+            pressureInsightError = error.localizedDescription
+            pressureInsight = nil
+        }
+    }
+
+    @MainActor
+    private func runHumidityAnalysis(observations: [WeatherObservation]) async {
+        guard !observations.isEmpty else { return }
+        isAnalysingHumidity = true
+        defer { isAnalysingHumidity = false }
+        do {
+            humidityInsight = try await AppleIntelligenceService.analyseHumidity(observations: observations)
+            humidityInsightError = nil
+        } catch {
+            humidityInsightError = error.localizedDescription
+            humidityInsight = nil
+        }
+    }
+
     private func analyseWeather() {
         analysisResult = nil
         isAnalysing    = true
@@ -340,9 +390,16 @@ struct WeatherView: View {
         isLoading = true
         defer { isLoading = false }
 
+        pressureInsight = nil
+        pressureInsightError = nil
+        humidityInsight = nil
+        humidityInsightError = nil
+
         do {
             let bundle = try await WeatherService.shared.fetchWeatherBundle()
             weather = bundle.weather
+            Task { await runPressureAnalysis(observations: bundle.weather.observations) }
+            Task { await runHumidityAnalysis(observations: bundle.weather.observations) }
 
             hourlyForecast = bundle.hourlyForecast
             forecastInfo = bundle.forecast

@@ -344,7 +344,7 @@ final class WeatherService {
         let stationName = response.observations.header.first?.name ?? fallbackTitle
 
         let observations: [WeatherObservation] = response.observations.data
-            .prefix(8)
+            .prefix(48)
             .map { point in
                 let raw = (point.cloud ?? "").trimmingCharacters(in: .whitespaces)
                 let cloud = (raw.isEmpty || raw == "-") ? "Sunny" : raw

@@ -52,10 +52,20 @@ struct WeatherCard: View {
     }
     private var xAxisIndices: [Int] {
         guard !chartPoints.isEmpty else { return [] }
-        var indices = Array(stride(from: 0, to: chartPoints.count, by: 2))
+        let step = max(chartPoints.count / 6, 1)
+        var indices = Array(stride(from: 0, to: chartPoints.count, by: step))
         let lastIndex = chartPoints.count - 1
         if indices.last != lastIndex { indices.append(lastIndex) }
         return indices
+    }
+
+    private func formattedAxisTime(_ raw: String) -> String {
+        guard raw.count == 4,
+              let hour = Int(raw.prefix(2)),
+              let min  = Int(raw.suffix(2)) else { return raw }
+        let h12   = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour)
+        let ampm  = hour < 12 ? "am" : "pm"
+        return min == 0 ? "\(h12)\(ampm)" : "\(h12):\(String(format: "%02d", min))\(ampm)"
     }
     private var temperatureDomain: ClosedRange<Double> {
         let temperatures = chartObs.flatMap { [$0.apparentTemp, $0.airTemp] }
@@ -122,7 +132,7 @@ struct WeatherCard: View {
 
                 if chartObs.count >= 2 {
                     Divider()
-                    Label("Last 8 hours", systemImage: "chart.xyaxis.line")
+                    Label("Last 24 hours", systemImage: "chart.xyaxis.line")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                     observationCharts.padding(.top, 6)
@@ -237,7 +247,8 @@ struct WeatherCard: View {
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                 AxisValueLabel {
                     if let index = value.as(Int.self), chartPoints.indices.contains(index) {
-                        Text(chartPoints[index].observation.localDateTime).font(.caption2)
+                        Text(formattedAxisTime(chartPoints[index].observation.localDateTime))
+                            .font(.caption2)
                     }
                 }
             }
