@@ -20,12 +20,12 @@ struct ForecastCard: View {
         CardContainer {
             VStack(alignment: .leading, spacing: 12) {
                 Label("7-Day Forecast", systemImage: "calendar")
-                    .font(.caption.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)
 
                 if let forecast {
                     Text(forecast.locationName)
-                        .font(.subheadline.weight(.medium))
+                        .font(.body.weight(.medium))
 
                     Divider()
 
@@ -86,7 +86,7 @@ struct ForecastCard: View {
     private var rainChanceChart: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Rain chance (%)")
-                .font(.caption2.weight(.semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(.tertiary)
 
             Chart {
@@ -102,7 +102,7 @@ struct ForecastCard: View {
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
                     .foregroundStyle(.blue.opacity(0.4))
                     .annotation(position: .leading) {
-                        Text("50").font(.caption2).foregroundStyle(.blue.opacity(0.4))
+                        Text("50").font(.caption).foregroundStyle(.blue.opacity(0.4))
                     }
             }
             .chartYScale(domain: 0...100)
@@ -110,12 +110,12 @@ struct ForecastCard: View {
                 AxisMarks(values: [0, 50, 100]) { value in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                     AxisValueLabel {
-                        if let v = value.as(Int.self) { Text("\(v)%").font(.caption2) }
+                        if let v = value.as(Int.self) { Text("\(v)%").font(.caption) }
                     }
                 }
             }
             .chartXAxis {
-                AxisMarks { _ in AxisValueLabel().font(.caption2) }
+                AxisMarks { _ in AxisValueLabel().font(.caption) }
             }
             .frame(height: 80)
         }
@@ -135,7 +135,7 @@ struct ForecastCard: View {
                 Label("Sunset", systemImage: "sunset.fill")
                     .foregroundStyle(.indigo)
             }
-            .font(.caption2.weight(.semibold))
+            .font(.caption.weight(.semibold))
             .foregroundStyle(.tertiary)
 
             Chart {
@@ -176,13 +176,13 @@ struct ForecastCard: View {
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                     AxisValueLabel {
                         if let v = value.as(Double.self) {
-                            Text(hourLabel(v)).font(.caption2)
+                            Text(hourLabel(v)).font(.caption)
                         }
                     }
                 }
             }
             .chartXAxis {
-                AxisMarks { _ in AxisValueLabel().font(.caption2) }
+                AxisMarks { _ in AxisValueLabel().font(.caption) }
             }
             .frame(height: 100)
         }
@@ -223,7 +223,7 @@ private struct ForecastDayColumn: View {
     var body: some View {
         VStack(spacing: 5) {
             Text(shortDayName)
-                .font(.caption2.weight(.semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(isSelected ? .primary : .secondary)
 
             Image(systemName: conditionSymbol)
@@ -238,7 +238,7 @@ private struct ForecastDayColumn: View {
                     Text(" ")
                 }
             }
-            .font(.caption2)
+            .font(.caption)
 
             TempRangeBar(tempMin: day.tempMin, tempMax: day.tempMax,
                          weekMin: weekMin, weekMax: weekMax)
@@ -246,9 +246,9 @@ private struct ForecastDayColumn: View {
 
             VStack(spacing: 1) {
                 Text(day.tempMax.map { "\($0)°" } ?? "--")
-                    .font(.caption2.weight(.semibold))
+                    .font(.caption.weight(.semibold))
                 Text(day.tempMin.map { "\($0)°" } ?? "--")
-                    .font(.caption2)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
@@ -358,7 +358,7 @@ private struct ForecastSelectedDayDetail: View {
 
             if let detail = day.extendedText?.trimmingCharacters(in: .whitespacesAndNewlines), !detail.isEmpty {
                 Text(detail)
-                    .font(.caption2)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -415,7 +415,7 @@ private struct StatPill: View {
             Image(systemName: symbol)
             Text("\(label): \(value)")
         }
-        .font(.caption2)
+        .font(.caption)
         .foregroundStyle(.secondary)
     }
 }

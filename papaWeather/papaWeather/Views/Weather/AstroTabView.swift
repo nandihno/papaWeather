@@ -14,7 +14,7 @@ struct AstroTabView: View {
             CardContainer {
                 VStack(alignment: .leading, spacing: 12) {
                     Label("This Week", systemImage: "sun.horizon.fill")
-                        .font(.caption.weight(.semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.secondary)
 
                     Text(astronomy.timeZoneDescription)
@@ -118,7 +118,7 @@ private struct DayRow: View {
                 Label(setLabel, systemImage: "sunset.fill")
                     .foregroundStyle(.indigo)
             }
-            .font(.caption2.weight(.medium))
+            .font(.caption.weight(.medium))
             .padding(.leading, 56)
 
             if isExpanded {
@@ -319,7 +319,7 @@ private struct AstroDayDetail: View {
                 .font(.system(size: 12))
                 .foregroundStyle(color)
             Text(label)
-                .font(.caption2)
+                .font(.caption)
                 .foregroundStyle(.secondary)
             Text(value)
                 .font(.caption.weight(.semibold))

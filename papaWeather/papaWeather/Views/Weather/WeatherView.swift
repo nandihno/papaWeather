@@ -90,11 +90,11 @@ struct WeatherView: View {
                                 .font(.system(size: 10))
                                 .foregroundStyle(palette.textSecondary)
                             Text(locality ?? "Weather")
-                                .font(.transit(16, weight: .bold))
+                                .font(.transit(20, weight: .bold))
                         }
                         if let fetchTime {
                             Text(fetchTime)
-                                .font(.transit(11, weight: .medium))
+                                .font(.transit(13, weight: .medium))
                                 .foregroundStyle(palette.textSecondary)
                         }
                     }
@@ -195,7 +195,7 @@ struct WeatherView: View {
             Image(systemName: usingFallbackData ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
                 .foregroundStyle(usingFallbackData ? AppTheme.warning : AppTheme.success)
         }
-        .font(.transit(13, weight: .medium))
+        .font(.transit(15, weight: .medium))
         .foregroundStyle(palette.textSecondary)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 2)
@@ -217,7 +217,7 @@ struct WeatherView: View {
                         Text("AI Weather Briefing")
                             .font(.transit(18, weight: .bold))
                         Text(poweredByLabel)
-                            .font(.caption2)
+                            .font(.caption)
                             .foregroundStyle(palette.textSecondary)
                     }
                 }

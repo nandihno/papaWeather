@@ -16,9 +16,9 @@ struct PressureInsightCard: View {
                 Label {
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Pressure Outlook")
-                            .font(.transit(15, weight: .semibold))
+                            .font(.transit(17, weight: .semibold))
                         Text("On-device · Apple Intelligence")
-                            .font(.caption2)
+                            .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 } icon: {

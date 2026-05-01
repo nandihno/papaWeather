@@ -88,13 +88,13 @@ struct WeatherCard: View {
         CardContainer {
             VStack(alignment: .leading, spacing: 12) {
                 Label(title, systemImage: "cloud.sun.fill")
-                    .font(.caption.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)
 
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(weather.stationName)
-                            .font(.subheadline)
+                            .font(.body)
                             .foregroundStyle(.secondary)
 
                         HStack(alignment: .firstTextBaseline, spacing: 2) {
@@ -107,7 +107,7 @@ struct WeatherCard: View {
                         }
 
                         Text(latest?.cloud ?? "--")
-                            .font(.subheadline)
+                            .font(.body)
                             .foregroundStyle(.secondary)
 
                         if let obs = latest {
@@ -119,7 +119,7 @@ struct WeatherCard: View {
                                 Label("\(obs.windDir) \(obs.windSpeedKmh) km/h", systemImage: "wind")
                                     .foregroundStyle(.teal)
                             }
-                            .font(.caption2)
+                            .font(.caption)
                         }
                     }
 
@@ -133,7 +133,7 @@ struct WeatherCard: View {
                 if chartObs.count >= 2 {
                     Divider()
                     Label("Last 24 hours", systemImage: "chart.xyaxis.line")
-                        .font(.caption.weight(.semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.secondary)
                     observationCharts.padding(.top, 6)
                 }
@@ -150,11 +150,11 @@ struct WeatherCard: View {
             HStack(spacing: 16) {
                 HStack(spacing: 4) {
                     Capsule().fill(.blue).frame(width: 16, height: 3)
-                    Text("Feels like").font(.caption2).foregroundStyle(.secondary)
+                    Text("Feels like").font(.caption).foregroundStyle(.secondary)
                 }
                 HStack(spacing: 4) {
                     Capsule().fill(.orange).frame(width: 16, height: 3)
-                    Text("Air temp").font(.caption2).foregroundStyle(.secondary)
+                    Text("Air temp").font(.caption).foregroundStyle(.secondary)
                 }
             }
 
@@ -167,7 +167,7 @@ struct WeatherCard: View {
     @ViewBuilder
     private func chartSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.caption2.weight(.medium)).foregroundStyle(.secondary)
+            Text(title).font(.caption.weight(.medium)).foregroundStyle(.secondary)
             content()
         }
     }
@@ -194,7 +194,7 @@ struct WeatherCard: View {
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                 AxisValueLabel {
                     if let v = value.as(Double.self) {
-                        Text(String(format: "%.0f°", v)).font(.caption2)
+                        Text(String(format: "%.0f°", v)).font(.caption)
                     }
                 }
             }
@@ -221,7 +221,7 @@ struct WeatherCard: View {
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                 AxisValueLabel {
                     if let v = value.as(Double.self) {
-                        Text(String(format: "%.0f", v)).font(.caption2)
+                        Text(String(format: "%.0f", v)).font(.caption)
                     }
                 }
             }
@@ -248,7 +248,7 @@ struct WeatherCard: View {
                 AxisValueLabel {
                     if let index = value.as(Int.self), chartPoints.indices.contains(index) {
                         Text(formattedAxisTime(chartPoints[index].observation.localDateTime))
-                            .font(.caption2)
+                            .font(.caption)
                     }
                 }
             }
@@ -258,7 +258,7 @@ struct WeatherCard: View {
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                 AxisValueLabel {
                     if let v = value.as(Double.self) {
-                        Text(String(format: "%.0f%%", v)).font(.caption2)
+                        Text(String(format: "%.0f%%", v)).font(.caption)
                     }
                 }
             }
@@ -269,14 +269,14 @@ struct WeatherCard: View {
     private var pressureGuidance: some View {
         VStack(alignment: .leading, spacing: 4) {
             Label("Pressure Guide", systemImage: "info.circle.fill")
-                .font(.caption.weight(.semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
             Text("Standard Pressure: 1013.25 hPa is considered standard atmospheric pressure at sea level.")
-                .font(.caption2).foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(.secondary)
             Text("High Pressure (Anticyclone): Values above 1013 hPa generally indicate stable, dry, and sunny weather.")
-                .font(.caption2).foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(.secondary)
             Text("Low Pressure (Depression): Values below 1013 hPa indicate unstable, cloudy, and stormy weather.")
-                .font(.caption2).foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(.secondary)
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)

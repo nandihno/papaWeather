@@ -29,7 +29,7 @@ struct HourlyTabView: View {
         CardContainer {
             VStack(alignment: .leading, spacing: 14) {
                 Label("Current Conditions", systemImage: "clock.fill")
-                    .font(.caption.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)
 
                 HStack(alignment: .top) {
@@ -43,7 +43,7 @@ struct HourlyTabView: View {
                                 .padding(.top, 8)
                         }
                         Text("Feels like \(hour.feelsLike)°")
-                            .font(.subheadline)
+                            .font(.body)
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
@@ -72,10 +72,10 @@ struct HourlyTabView: View {
                 .frame(width: 18)
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
-                    .font(.caption2)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                 Text(value)
-                    .font(.caption.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -92,7 +92,7 @@ struct HourlyTabView: View {
         CardContainer {
             VStack(alignment: .leading, spacing: 12) {
                 Label("Hourly Overview", systemImage: "clock.arrow.2.circlepath")
-                    .font(.caption.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)
 
                 Divider()
@@ -106,7 +106,7 @@ struct HourlyTabView: View {
                         ForEach(groups, id: \.label) { group in
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(group.label)
-                                    .font(.caption2.weight(.bold))
+                                    .font(.caption.weight(.bold))
                                     .foregroundStyle(.secondary)
                                     .padding(.leading, 6)
 
@@ -239,7 +239,7 @@ private struct HourColumn: View {
     var body: some View {
         VStack(spacing: 5) {
             Text(hour.time)
-                .font(.caption2.weight(.semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(isSelected ? .primary : .secondary)
 
             Image(systemName: conditionSymbol)
@@ -254,13 +254,13 @@ private struct HourColumn: View {
                     Text(" ")
                 }
             }
-            .font(.caption2)
+            .font(.caption)
 
             HourTempDot(temp: hour.temp, allMin: allMin, allMax: allMax)
                 .frame(width: 8, height: 44)
 
             Text("\(hour.temp)°")
-                .font(.caption2.weight(.semibold))
+                .font(.caption.weight(.semibold))
         }
         .frame(minWidth: 46)
         .padding(.vertical, 8)
@@ -367,10 +367,10 @@ private struct HourSelectedDetail: View {
                 .frame(width: 18)
             VStack(alignment: .leading, spacing: 1) {
                 Text(label)
-                    .font(.caption2)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                 Text(value)
-                    .font(.caption.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

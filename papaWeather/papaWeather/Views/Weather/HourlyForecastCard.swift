@@ -13,7 +13,7 @@ struct HourlyForecastCard: View {
             CardContainer {
                 VStack(alignment: .leading, spacing: 12) {
                     Label("Next \(hourly.hours.count) Hours", systemImage: "clock.fill")
-                        .font(.caption.weight(.semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.secondary)
 
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -21,7 +21,7 @@ struct HourlyForecastCard: View {
                             ForEach(hourly.hours) { hour in
                                 VStack(spacing: 8) {
                                     Text(hour.time)
-                                        .font(.caption2.weight(.semibold))
+                                        .font(.caption.weight(.semibold))
                                         .foregroundStyle(.secondary)
 
                                     Image(systemName: hourlySymbol(for: hour))
@@ -33,12 +33,12 @@ struct HourlyForecastCard: View {
                                         .font(.title3.weight(.medium))
 
                                     Text("Feels \(hour.feelsLike)°")
-                                        .font(.caption2)
+                                        .font(.caption)
                                         .foregroundStyle(.secondary)
 
                                     HStack(spacing: 2) {
                                         Image(systemName: "drop.fill").font(.system(size: 8))
-                                        Text("\(hour.rainChance)%").font(.caption2.weight(.medium))
+                                        Text("\(hour.rainChance)%").font(.caption.weight(.medium))
                                     }
                                     .foregroundStyle(hour.rainChance > 30 ? .blue : .secondary)
                                     .padding(.horizontal, 6)
