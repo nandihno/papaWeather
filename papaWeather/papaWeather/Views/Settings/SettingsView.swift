@@ -8,6 +8,7 @@ import SwiftUI
 struct SettingsView: View {
     @AppStorage("claudeApiKey") private var claudeApiKey: String = ""
     @AppStorage("aiProvider") private var aiProviderRaw: String = AIProvider.appleIntelligence.rawValue
+    @AppStorage("radarEnabled") private var radarEnabled: Bool = false
     @Environment(\.dismiss) private var dismiss
 
     private var useClaude: Binding<Bool> {
@@ -22,6 +23,7 @@ struct SettingsView: View {
             Form {
                 aiSection
                 weatherStationsSection
+                radarSection
                 aboutSection
             }
             .navigationTitle("Settings")
@@ -82,6 +84,19 @@ struct SettingsView: View {
             Text("Weather Data")
         } footer: {
             Text("papaWeather uses Bureau of Meteorology data — no API key required. The nearest station to your location is selected automatically.")
+        }
+    }
+
+    // MARK: - Radar Map
+
+    @ViewBuilder
+    private var radarSection: some View {
+        Section {
+            Toggle("Enable Radar Tab", isOn: $radarEnabled)
+        } header: {
+            Text("Radar Map")
+        } footer: {
+            Text("Shows a live precipitation radar map tab. Disabled by default as it uses third-party tile services.")
         }
     }
 

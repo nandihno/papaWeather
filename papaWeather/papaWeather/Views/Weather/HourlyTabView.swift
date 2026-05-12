@@ -91,9 +91,15 @@ struct HourlyTabView: View {
     private func hourlyScrollCard(_ hours: [HourlyForecastHour]) -> some View {
         CardContainer {
             VStack(alignment: .leading, spacing: 12) {
-                Label("Hourly Overview", systemImage: "clock.arrow.2.circlepath")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                HStack {
+                    Label("Hourly Overview", systemImage: "clock.arrow.2.circlepath")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Label("Tap for details", systemImage: "hand.tap")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
 
                 Divider()
 
@@ -261,6 +267,10 @@ private struct HourColumn: View {
 
             Text("\(hour.temp)°")
                 .font(.caption.weight(.semibold))
+
+            Image(systemName: isSelected ? "chevron.up" : "chevron.down")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.tertiary)
         }
         .frame(minWidth: 46)
         .padding(.vertical, 8)

@@ -9,6 +9,7 @@ import FoundationModels
 struct WeatherView: View {
     @AppStorage("claudeApiKey") private var claudeApiKey: String = ""
     @AppStorage("aiProvider") private var aiProviderRaw: String = AIProvider.appleIntelligence.rawValue
+    @AppStorage("radarEnabled") private var radarEnabled: Bool = false
     @Environment(\.colorScheme) private var colorScheme
     @State private var weather = MockWeatherService.mockWeather()
     @State private var forecastInfo: DailyForecastInfo?
@@ -73,6 +74,13 @@ struct WeatherView: View {
                     .tabItem {
                         Label("Astro", systemImage: "sun.horizon.fill")
                     }
+
+                if radarEnabled {
+                    RadarMapView()
+                        .tabItem {
+                            Label("Radar", systemImage: "cloud.rain.fill")
+                        }
+                }
             }
             .navigationTitle("Weather")
             .navigationBarTitleDisplayMode(.inline)
@@ -117,18 +125,6 @@ struct WeatherView: View {
             fetchButton
             statusBanner
             WeatherCard(weather: weather, title: "Weather Station")
-            if appleIntelligenceAvailable {
-                PressureInsightCard(
-                    isLoading: isAnalysingPressure,
-                    insight: pressureInsight,
-                    errorMessage: pressureInsightError
-                )
-                HumidityInsightCard(
-                    isLoading: isAnalysingHumidity,
-                    insight: humidityInsight,
-                    errorMessage: humidityInsightError
-                )
-            }
             weatherAnalyseCard
         }
     }
