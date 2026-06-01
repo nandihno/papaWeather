@@ -10,6 +10,13 @@ struct WeatherView: View {
     @AppStorage("claudeApiKey") private var claudeApiKey: String = ""
     @AppStorage("aiProvider") private var aiProviderRaw: String = AIProvider.appleIntelligence.rawValue
     @AppStorage("radarEnabled") private var radarEnabled: Bool = false
+    @AppStorage(WeeklyActivityPlannerStorage.monday) private var mondayActivity: String = ""
+    @AppStorage(WeeklyActivityPlannerStorage.tuesday) private var tuesdayActivity: String = ""
+    @AppStorage(WeeklyActivityPlannerStorage.wednesday) private var wednesdayActivity: String = ""
+    @AppStorage(WeeklyActivityPlannerStorage.thursday) private var thursdayActivity: String = ""
+    @AppStorage(WeeklyActivityPlannerStorage.friday) private var fridayActivity: String = ""
+    @AppStorage(WeeklyActivityPlannerStorage.saturday) private var saturdayActivity: String = ""
+    @AppStorage(WeeklyActivityPlannerStorage.sunday) private var sundayActivity: String = ""
     @Environment(\.colorScheme) private var colorScheme
     @State private var weather = MockWeatherService.mockWeather()
     @State private var forecastInfo: DailyForecastInfo?
@@ -50,6 +57,17 @@ struct WeatherView: View {
     }
     private var conditionBackground: LinearGradient? {
         WeatherBackground.gradient(for: hourlyForecast?.current, colorScheme: colorScheme)
+    }
+    private var weeklyActivityPlan: WeeklyActivityPlan {
+        WeeklyActivityPlan(
+            monday: mondayActivity,
+            tuesday: tuesdayActivity,
+            wednesday: wednesdayActivity,
+            thursday: thursdayActivity,
+            friday: fridayActivity,
+            saturday: saturdayActivity,
+            sunday: sundayActivity
+        )
     }
 
     var body: some View {
@@ -359,11 +377,13 @@ struct WeatherView: View {
                 case .claude:
                     result = try await ClaudeService.analyseWeather(
                         forecastSummary: forecastSummary,
+                        weeklyActivityPlan: weeklyActivityPlan,
                         apiKey: claudeApiKey
                     )
                 case .appleIntelligence:
                     result = try await AppleIntelligenceService.analyseWeather(
-                        forecastSummary: forecastSummary
+                        forecastSummary: forecastSummary,
+                        weeklyActivityPlan: weeklyActivityPlan
                     )
                 }
                 analysisResult = result

@@ -30,8 +30,14 @@ enum AppleIntelligenceError: LocalizedError {
 
 enum AppleIntelligenceService {
 
-    static func analyseWeather(forecastSummary: String) async throws -> String {
-        let spec = WeatherAnalysisSpecBuilder.make(forecastSummary: forecastSummary)
+    static func analyseWeather(
+        forecastSummary: String,
+        weeklyActivityPlan: WeeklyActivityPlan = WeeklyActivityPlan()
+    ) async throws -> String {
+        let spec = WeatherAnalysisSpecBuilder.make(
+            forecastSummary: forecastSummary,
+            weeklyActivityPlan: weeklyActivityPlan
+        )
         return try await analyse(spec: spec)
     }
 

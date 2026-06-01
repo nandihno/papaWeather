@@ -9,6 +9,13 @@ struct SettingsView: View {
     @AppStorage("claudeApiKey") private var claudeApiKey: String = ""
     @AppStorage("aiProvider") private var aiProviderRaw: String = AIProvider.appleIntelligence.rawValue
     @AppStorage("radarEnabled") private var radarEnabled: Bool = false
+    @AppStorage(WeeklyActivityPlannerStorage.monday) private var mondayActivity: String = ""
+    @AppStorage(WeeklyActivityPlannerStorage.tuesday) private var tuesdayActivity: String = ""
+    @AppStorage(WeeklyActivityPlannerStorage.wednesday) private var wednesdayActivity: String = ""
+    @AppStorage(WeeklyActivityPlannerStorage.thursday) private var thursdayActivity: String = ""
+    @AppStorage(WeeklyActivityPlannerStorage.friday) private var fridayActivity: String = ""
+    @AppStorage(WeeklyActivityPlannerStorage.saturday) private var saturdayActivity: String = ""
+    @AppStorage(WeeklyActivityPlannerStorage.sunday) private var sundayActivity: String = ""
     @Environment(\.dismiss) private var dismiss
 
     private var useClaude: Binding<Bool> {
@@ -22,6 +29,7 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 aiSection
+                weeklyPlannerSection
                 weatherStationsSection
                 radarSection
                 aboutSection
@@ -64,6 +72,56 @@ struct SettingsView: View {
             } else {
                 Text("Using Apple Intelligence (on-device) for weather briefings. Toggle on to use Claude AI instead.")
             }
+        }
+    }
+
+    // MARK: - Weekly Planner
+
+    @ViewBuilder
+    private var weeklyPlannerSection: some View {
+        Section {
+            ForEach(WeeklyActivityDay.allCases) { day in
+                WeeklyPlannerDayRow(
+                    day: day,
+                    activity: cappedBinding(for: day),
+                    characterLimit: WeeklyActivityPlan.maxActivityLength
+                )
+            }
+        } header: {
+            Text("Weekly Planner")
+        } footer: {
+            Text("Add weather-sensitive plans for each day. Weather briefings use these entries to tailor activity advice instead of assuming fixed weekly routines.")
+        }
+    }
+
+    private func cappedBinding(for day: WeeklyActivityDay) -> Binding<String> {
+        let source = binding(for: day)
+        return Binding(
+            get: {
+                String(source.wrappedValue.prefix(WeeklyActivityPlan.maxActivityLength))
+            },
+            set: {
+                source.wrappedValue = String($0.prefix(WeeklyActivityPlan.maxActivityLength))
+            }
+        )
+    }
+
+    private func binding(for day: WeeklyActivityDay) -> Binding<String> {
+        switch day {
+        case .monday:
+            $mondayActivity
+        case .tuesday:
+            $tuesdayActivity
+        case .wednesday:
+            $wednesdayActivity
+        case .thursday:
+            $thursdayActivity
+        case .friday:
+            $fridayActivity
+        case .saturday:
+            $saturdayActivity
+        case .sunday:
+            $sundayActivity
         }
     }
 
@@ -114,5 +172,31 @@ struct SettingsView: View {
                 Spacer()
             }
         }
+    }
+}
+
+private struct WeeklyPlannerDayRow: View {
+    let day: WeeklyActivityDay
+    @Binding var activity: String
+    let characterLimit: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(day.title)
+                Spacer()
+                Text("\(activity.count)/\(characterLimit)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+
+            TextField("No plans", text: $activity, axis: .vertical)
+                .lineLimit(3...5)
+                .frame(minHeight: 88, alignment: .topLeading)
+                .multilineTextAlignment(.leading)
+                .textInputAutocapitalization(.sentences)
+        }
+        .padding(.vertical, 6)
     }
 }

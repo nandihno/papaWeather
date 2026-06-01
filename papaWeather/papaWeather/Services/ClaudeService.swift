@@ -55,8 +55,15 @@ enum ClaudeService {
         return response.content.compactMap(\.text).first ?? "No analysis available"
     }
 
-    static func analyseWeather(forecastSummary: String, apiKey: String) async throws -> String {
-        let spec = WeatherAnalysisSpecBuilder.make(forecastSummary: forecastSummary)
+    static func analyseWeather(
+        forecastSummary: String,
+        weeklyActivityPlan: WeeklyActivityPlan = WeeklyActivityPlan(),
+        apiKey: String
+    ) async throws -> String {
+        let spec = WeatherAnalysisSpecBuilder.make(
+            forecastSummary: forecastSummary,
+            weeklyActivityPlan: weeklyActivityPlan
+        )
         return try await analyse(spec: spec, apiKey: apiKey)
     }
 }
@@ -71,7 +78,10 @@ struct ClaudeAnalysisSpec {
 }
 
 enum WeatherAnalysisSpecBuilder {
-    static func make(forecastSummary: String) -> ClaudeAnalysisSpec {
+    static func make(
+        forecastSummary: String,
+        weeklyActivityPlan: WeeklyActivityPlan = WeeklyActivityPlan()
+    ) -> ClaudeAnalysisSpec {
         let now = Date()
         let dateFmt = DateFormatter()
         dateFmt.dateStyle = .full
@@ -83,6 +93,8 @@ enum WeatherAnalysisSpecBuilder {
 
         7-day forecast:
         \(forecastSummary)
+
+        \(weeklyActivityPlan.promptText)
         """
 
         return ClaudeAnalysisSpec(
@@ -94,7 +106,7 @@ enum WeatherAnalysisSpecBuilder {
             1. TODAY — What to wear, whether to bring an umbrella, UV protection needed, best time for outdoor activity or gym
             2. COMMUTE — Any weather impact on the morning or evening commute
             3. WEEK AHEAD — Flag any notable days (extreme heat, heavy rain, fire danger)
-            4. ACTIVITIES - Flag when is best to hang clothes for washing, when is best to walk outdoors or when not to walk outdoors
+            4. ACTIVITIES — Use the user's weekly activity planner to advise which listed plans are weather-friendly, need timing changes, or should be reconsidered
             5. ONE SPECIFIC TIP — Something actionable based on the forecast
 
             RULES:
@@ -102,6 +114,8 @@ enum WeatherAnalysisSpecBuilder {
             - Use plain conversational English
             - No bullet points — write in short paragraphs
             - Don't just repeat the data — interpret it
+            - Do not invent activities for blank planner days
+            - If the planner has no entries, keep activity advice general and forecast-driven
             - If fire danger is Extreme or Catastrophic, always highlight this prominently
             - Temperatures in Celsius
             - Use a ## header for each section (e.g. ## Today, ## Commute, ## Week Ahead, ## Tip)
