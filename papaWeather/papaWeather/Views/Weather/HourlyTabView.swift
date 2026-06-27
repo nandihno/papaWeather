@@ -17,6 +17,12 @@ struct HourlyTabView: View {
                 if !hourly.hours.isEmpty {
                     hourlyScrollCard(hourly.hours)
                 }
+                if !hourly.hours.isEmpty {
+                    windScrollCard(hourly.hours)
+                }
+                if !hourly.hours.isEmpty {
+                    feelsLikeScrollCard(hourly.hours)
+                }
             }
         } else {
             emptyState
@@ -148,6 +154,95 @@ struct HourlyTabView: View {
                     Divider()
                     HourSelectedDetail(hour: hour)
                         .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+        }
+    }
+
+    // MARK: - Wind speed scroll card
+
+    private func windScrollCard(_ hours: [HourlyForecastHour]) -> some View {
+        CardContainer {
+            VStack(alignment: .leading, spacing: 12) {
+                Label("Hourly Wind", systemImage: "wind")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                Divider()
+
+                let maxWind = max(hours.map(\.gustSpeedKmh).max() ?? 1, 1)
+                let groups = groupByDay(hours)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(alignment: .top, spacing: 0) {
+                        ForEach(groups, id: \.label) { group in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(group.label)
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(.secondary)
+                                    .padding(.leading, 6)
+
+                                HStack(alignment: .top, spacing: 2) {
+                                    ForEach(group.hours) { hour in
+                                        WindColumn(hour: hour, maxWind: maxWind)
+                                    }
+                                }
+                            }
+
+                            if group.label != groups.last?.label {
+                                Divider()
+                                    .frame(height: 90)
+                                    .padding(.horizontal, 4)
+                                    .padding(.top, 20)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 2)
+                }
+            }
+        }
+    }
+
+    // MARK: - Feels Like scroll card
+
+    private func feelsLikeScrollCard(_ hours: [HourlyForecastHour]) -> some View {
+        CardContainer {
+            VStack(alignment: .leading, spacing: 12) {
+                Label("Feels Like", systemImage: "thermometer.medium")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                Divider()
+
+                let allMin = min(hours.map(\.feelsLike).min() ?? 0, hours.map(\.temp).min() ?? 0)
+                let allMax = max(hours.map(\.feelsLike).max() ?? 40, hours.map(\.temp).max() ?? 40)
+                let groups = groupByDay(hours)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(alignment: .top, spacing: 0) {
+                        ForEach(groups, id: \.label) { group in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(group.label)
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(.secondary)
+                                    .padding(.leading, 6)
+
+                                HStack(alignment: .top, spacing: 2) {
+                                    ForEach(group.hours) { hour in
+                                        FeelsLikeColumn(hour: hour, allMin: allMin, allMax: allMax)
+                                    }
+                                }
+                            }
+
+                            if group.label != groups.last?.label {
+                                Divider()
+                                    .frame(height: 90)
+                                    .padding(.horizontal, 4)
+                                    .padding(.top, 20)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 2)
                 }
             }
         }
@@ -387,5 +482,194 @@ private struct HourSelectedDetail: View {
         .padding(10)
         .background(Color.secondary.opacity(0.06))
         .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+// MARK: - Wind column
+
+private struct WindColumn: View {
+    let hour: HourlyForecastHour
+    let maxWind: Int
+
+    var body: some View {
+        VStack(spacing: 5) {
+            Text(hour.time)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Image(systemName: "arrow.up")
+                .font(.system(size: 11, weight: .bold))
+                .rotationEffect(.degrees(directionDegrees(hour.windDirection)))
+                .foregroundStyle(.teal)
+                .frame(height: 16)
+
+            WindBar(windSpeed: hour.windSpeedKmh, gustSpeed: hour.gustSpeedKmh, maxWind: maxWind)
+                .frame(width: 8, height: 44)
+
+            Text("\(hour.windSpeedKmh)")
+                .font(.caption.weight(.semibold))
+
+            Text("km/h")
+                .font(.system(size: 8))
+                .foregroundStyle(.secondary)
+        }
+        .frame(minWidth: 46)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 4)
+    }
+
+    // Arrow points toward the direction the wind comes FROM (meteorological convention)
+    private func directionDegrees(_ dir: String) -> Double {
+        switch dir.uppercased() {
+        case "N":   return 0
+        case "NNE": return 22.5
+        case "NE":  return 45
+        case "ENE": return 67.5
+        case "E":   return 90
+        case "ESE": return 112.5
+        case "SE":  return 135
+        case "SSE": return 157.5
+        case "S":   return 180
+        case "SSW": return 202.5
+        case "SW":  return 225
+        case "WSW": return 247.5
+        case "W":   return 270
+        case "WNW": return 292.5
+        case "NW":  return 315
+        case "NNW": return 337.5
+        default:    return 0
+        }
+    }
+}
+
+// MARK: - Wind bar
+
+private struct WindBar: View {
+    let windSpeed: Int
+    let gustSpeed: Int
+    let maxWind: Int
+
+    var body: some View {
+        GeometryReader { geo in
+            let h = geo.size.height
+            let windH = max(4, h * Double(windSpeed) / Double(max(maxWind, 1)))
+            let gustH = max(4, h * Double(gustSpeed) / Double(max(maxWind, 1)))
+
+            ZStack(alignment: .bottom) {
+                Capsule()
+                    .fill(windColor(for: gustSpeed).opacity(0.20))
+                    .frame(height: gustH)
+
+                Capsule()
+                    .fill(LinearGradient(
+                        colors: windGradient(for: windSpeed),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ))
+                    .frame(height: windH)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        }
+    }
+
+    private func windColor(for speed: Int) -> Color {
+        switch speed {
+        case 0..<20:  return .teal
+        case 20..<40: return .yellow
+        case 40..<60: return .orange
+        default:      return .red
+        }
+    }
+
+    private func windGradient(for speed: Int) -> [Color] {
+        switch speed {
+        case 0..<20:  return [.cyan, .teal]
+        case 20..<40: return [.yellow, .orange]
+        case 40..<60: return [.orange, .red]
+        default:      return [.red, .pink]
+        }
+    }
+}
+
+// MARK: - Feels like column
+
+private struct FeelsLikeColumn: View {
+    let hour: HourlyForecastHour
+    let allMin: Int
+    let allMax: Int
+
+    var body: some View {
+        VStack(spacing: 5) {
+            Text(hour.time)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Text("\(hour.temp)°")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+
+            FeelsLikeDot(feelsLike: hour.feelsLike, temp: hour.temp, allMin: allMin, allMax: allMax)
+                .frame(width: 8, height: 44)
+
+            Text("\(hour.feelsLike)°")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.purple)
+
+            Text("feels")
+                .font(.system(size: 8))
+                .foregroundStyle(.secondary)
+        }
+        .frame(minWidth: 46)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 4)
+    }
+}
+
+// MARK: - Feels like dot
+
+private struct FeelsLikeDot: View {
+    let feelsLike: Int
+    let temp: Int
+    let allMin: Int
+    let allMax: Int
+
+    var body: some View {
+        GeometryReader { geo in
+            let range = max(Double(allMax - allMin), 1)
+            let normalizedFL = Double(feelsLike - allMin) / range
+            let normalizedT  = Double(temp - allMin) / range
+            let h = geo.size.height
+            let dotSize: CGFloat = 8
+            let smallDot: CGFloat = 5
+
+            let flY  = max(0, min(h * (1.0 - normalizedFL) - dotSize / 2, h - dotSize))
+            let tmpY = max(0, min(h * (1.0 - normalizedT)  - smallDot / 2, h - smallDot))
+
+            ZStack(alignment: .top) {
+                Capsule()
+                    .fill(LinearGradient(
+                        colors: [.purple, .indigo, .blue],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ))
+                    .opacity(0.20)
+
+                // Actual temp dot (small, neutral)
+                Circle()
+                    .fill(Color.secondary.opacity(0.45))
+                    .frame(width: smallDot, height: smallDot)
+                    .offset(x: 1.5, y: tmpY)
+
+                // Feels-like dot (prominent, purple/indigo)
+                Circle()
+                    .fill(LinearGradient(
+                        colors: normalizedFL > 0.5 ? [.orange, .pink] : [.purple, .indigo],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ))
+                    .frame(width: dotSize, height: dotSize)
+                    .offset(y: flY)
+            }
+        }
     }
 }
