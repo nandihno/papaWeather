@@ -5,6 +5,7 @@
 
 import SwiftUI
 import FoundationModels
+import CoreLocation
 
 struct WeatherView: View {
     @AppStorage("claudeApiKey") private var claudeApiKey: String = ""
@@ -18,6 +19,7 @@ struct WeatherView: View {
     @AppStorage(WeeklyActivityPlannerStorage.saturday) private var saturdayActivity: String = ""
     @AppStorage(WeeklyActivityPlannerStorage.sunday) private var sundayActivity: String = ""
     @Environment(\.colorScheme) private var colorScheme
+    @State private var selectionStore = LocationSelectionStore.shared
     @State private var weather = MockWeatherService.mockWeather()
     @State private var forecastInfo: DailyForecastInfo?
     @State private var hourlyForecast: HourlyForecastInfo?
@@ -108,22 +110,12 @@ struct WeatherView: View {
             }
             .sheet(isPresented: $showAnalysis) { analysisSheet }
             .sheet(isPresented: $showSettings) { SettingsView() }
+            .onChange(of: selectionStore.selection) { _, _ in
+                fetchWeather()
+            }
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    VStack(spacing: 1) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "location.fill")
-                                .font(.system(size: 10))
-                                .foregroundStyle(palette.textSecondary)
-                            Text(locality ?? "Weather")
-                                .font(.transit(20, weight: .bold))
-                        }
-                        if let fetchTime {
-                            Text(fetchTime)
-                                .font(.transit(13, weight: .medium))
-                                .foregroundStyle(palette.textSecondary)
-                        }
-                    }
+                    locationSwitcher
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showSettings = true } label: {
@@ -136,6 +128,54 @@ struct WeatherView: View {
         .animation(.easeInOut(duration: 0.6), value: hourlyForecast?.current?.iconDescriptor)
         .animation(.easeInOut(duration: 0.6), value: hourlyForecast?.current?.isNight)
         .animation(.easeInOut(duration: 0.6), value: hourlyForecast?.current?.temp)
+    }
+
+    // MARK: - Location Switcher
+
+    private var isDeviceSelected: Bool {
+        if case .currentDevice = selectionStore.selection { return true }
+        return false
+    }
+
+    private var locationSwitcher: some View {
+        Menu {
+            Picker("Location", selection: $selectionStore.selection) {
+                Label("My Location", systemImage: "location.fill")
+                    .tag(ActiveLocation.currentDevice)
+                ForEach(selectionStore.saved) { location in
+                    Label(location.name, systemImage: "mappin.circle.fill")
+                        .tag(ActiveLocation.saved(location))
+                }
+            }
+            .pickerStyle(.inline)
+
+            Divider()
+
+            Button {
+                showSettings = true
+            } label: {
+                Label("Add or Edit Locations…", systemImage: "plus.circle")
+            }
+        } label: {
+            VStack(spacing: 1) {
+                HStack(spacing: 4) {
+                    Image(systemName: isDeviceSelected ? "location.fill" : "mappin.circle.fill")
+                        .font(.system(size: 10))
+                        .foregroundStyle(palette.textSecondary)
+                    Text(locality ?? "Weather")
+                        .font(.transit(20, weight: .bold))
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(palette.textSecondary)
+                }
+                if let fetchTime {
+                    Text(fetchTime)
+                        .font(.transit(13, weight: .medium))
+                        .foregroundStyle(palette.textSecondary)
+                }
+            }
+        }
+        .tint(palette.textPrimary)
     }
 
     private var stationTab: some View {
@@ -412,7 +452,16 @@ struct WeatherView: View {
         humidityInsightError = nil
 
         do {
-            let bundle = try await WeatherService.shared.fetchWeatherBundle()
+            let bundle: WeatherService.WeatherBundle
+            switch selectionStore.selection {
+            case .currentDevice:
+                bundle = try await WeatherService.shared.fetchWeatherBundle()
+            case .saved(let location):
+                bundle = try await WeatherService.shared.fetchWeatherBundle(
+                    coordinate: location.coordinate,
+                    presetLocalityName: location.name
+                )
+            }
             weather = bundle.weather
             Task { await runPressureAnalysis(observations: bundle.weather.observations) }
             Task { await runHumidityAnalysis(observations: bundle.weather.observations) }

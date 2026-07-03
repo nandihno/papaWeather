@@ -19,9 +19,15 @@ final class RadarMapViewModel {
     var isLoading: Bool = true
     var errorMessage: String? = nil
     var userCoordinate: CLLocationCoordinate2D? = nil
+    /// Bumped whenever the map should re-centre on `userCoordinate` (e.g. the user
+    /// switches location). The map view compares it against its last-centred value.
+    var recenterID: Int = 0
 
     private let locationManager = LocationManager()
     private var animationTask: Task<Void, Never>?
+    /// The selection `userCoordinate` was last resolved for, so we can detect a
+    /// switch that happened while the radar tab was off-screen.
+    private var resolvedSelection: ActiveLocation?
 
     init() {
         let stored = UserDefaults.standard.string(forKey: "mapProvider") ?? ""
@@ -63,12 +69,11 @@ final class RadarMapViewModel {
         isLoading = true
         errorMessage = nil
 
-        if userCoordinate == nil {
-            Task {
-                if let location = try? await locationManager.currentLocation() {
-                    userCoordinate = location.coordinate
-                }
-            }
+        if userCoordinate == nil || resolvedSelection != LocationSelectionStore.shared.selection {
+            // Resolve concurrently so a slow device-location fix doesn't hold up tiles.
+            // Re-centre only if we already had a location (i.e. this is a switch, not first load).
+            let hadCoordinate = userCoordinate != nil
+            Task { await resolveCoordinate(forceRecenter: hadCoordinate) }
         }
 
         do {
@@ -77,6 +82,26 @@ final class RadarMapViewModel {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+
+    /// Re-resolves the map's coordinate after the shared location selection changes,
+    /// and asks the map to re-centre on it.
+    func handleSelectionChange() {
+        Task { await resolveCoordinate(forceRecenter: true) }
+    }
+
+    private func resolveCoordinate(forceRecenter: Bool) async {
+        let selection = LocationSelectionStore.shared.selection
+        switch selection {
+        case .currentDevice:
+            if let location = try? await locationManager.currentLocation() {
+                userCoordinate = location.coordinate
+            }
+        case .saved(let location):
+            userCoordinate = CLLocationCoordinate2D(latitude: location.lat, longitude: location.lon)
+        }
+        resolvedSelection = selection
+        if forceRecenter { recenterID += 1 }
     }
 
     func startAnimation() {

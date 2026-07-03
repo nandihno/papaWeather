@@ -57,20 +57,35 @@ final class WeatherService {
         let locality: String?
     }
 
-    func fetchWeatherBundle() async throws -> WeatherBundle {
-        let deviceLocation = try await locationManager.currentLocation()
+    /// Fetches the full weather bundle for a location.
+    ///
+    /// - Parameters:
+    ///   - coordinate: The location to fetch for. Pass `nil` (the default) to use the
+    ///     device's current GPS location — the app's original behaviour.
+    ///   - presetLocalityName: A known display name for the location. When provided,
+    ///     reverse-geocoding is skipped and this name is used as the locality.
+    func fetchWeatherBundle(
+        coordinate: CLLocation? = nil,
+        presetLocalityName: String? = nil
+    ) async throws -> WeatherBundle {
+        let location: CLLocation
+        if let coordinate {
+            location = coordinate
+        } else {
+            location = try await locationManager.currentLocation()
+        }
 
         // Look up BOM location once — shared by both daily and hourly fetches
         let bomLocation = try? await fetchLocationLookup(
-            lat: deviceLocation.coordinate.latitude,
-            lon: deviceLocation.coordinate.longitude
+            lat: location.coordinate.latitude,
+            lon: location.coordinate.longitude
         ).data.first
 
-        async let weatherTask = fetchWeather(for: deviceLocation)
+        async let weatherTask = fetchWeather(for: location)
         async let forecastTask = fetchDailyForecast(bomLocation: bomLocation)
         async let hourlyTask = fetchHourlyForecast(bomLocation: bomLocation)
-        async let astronomyTask = fetchAstronomy(for: deviceLocation)
-        async let localityTask = fetchLocality(for: deviceLocation)
+        async let astronomyTask = fetchAstronomy(for: location)
+        async let localityTask = resolveLocality(preset: presetLocalityName, location: location)
         let weather = try await weatherTask
         let forecast = try? await forecastTask
         let hourly = try? await hourlyTask
@@ -370,6 +385,13 @@ final class WeatherService {
     private static func timeOnly(from raw: String) -> String {
         let parts = raw.split(separator: "/", maxSplits: 1)
         return parts.count == 2 ? String(parts[1]) : raw
+    }
+
+    /// Returns `preset` when a name is already known (saved locations), otherwise
+    /// reverse-geocodes the coordinate (device location path).
+    private func resolveLocality(preset: String?, location: CLLocation) async -> String? {
+        if let preset { return preset }
+        return await fetchLocality(for: location)
     }
 
     private func fetchLocality(for location: CLLocation) async -> String? {

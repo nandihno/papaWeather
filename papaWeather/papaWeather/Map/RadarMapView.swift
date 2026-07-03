@@ -15,6 +15,7 @@ struct MapKitRadarView: UIViewRepresentable {
     let forecastOffset: Int
     let owmLayer: OWMLayer
     let userCoordinate: CLLocationCoordinate2D?
+    let recenterID: Int
 
     private static let fallback = CLLocationCoordinate2D(latitude: -37.8136, longitude: 144.9631)
 
@@ -40,8 +41,10 @@ struct MapKitRadarView: UIViewRepresentable {
     func updateUIView(_ mapView: MKMapView, context: Context) {
         context.coordinator.userCoordinate = userCoordinate
 
-        if let coord = userCoordinate, !context.coordinator.hasCenteredOnUser {
-            context.coordinator.hasCenteredOnUser = true
+        // Re-centre when the coordinate first arrives, or when the user switches
+        // location (which bumps recenterID).
+        if let coord = userCoordinate, context.coordinator.lastCenteredRecenterID != recenterID {
+            context.coordinator.lastCenteredRecenterID = recenterID
             let region = MKCoordinateRegion(
                 center: coord,
                 latitudinalMeters: 200_000,
@@ -54,12 +57,12 @@ struct MapKitRadarView: UIViewRepresentable {
         switch provider {
         case .rainbow:
             let existing = mapView.overlays.compactMap { $0 as? RainbowTileOverlay }.first
-            // Replace when snapshot changes OR when the coordinate first arrives so
-            // any tiles fetched before location was known are re-evaluated.
-            let coordBecameAvailable = existing?.userCoordinate == nil && userCoordinate != nil
+            // Replace when snapshot/offset changes OR when the coordinate moves to a
+            // new location, so stale tiles from the previous area are cleared.
+            let coordChanged = Self.coordinateMoved(from: existing?.userCoordinate, to: userCoordinate)
             needsReplace = existing?.snapshot != snapshot
                 || existing?.forecastOffset != forecastOffset
-                || coordBecameAvailable
+                || coordChanged
         case .openWeatherMap:
             let existing = mapView.overlays.compactMap { $0 as? OpenWeatherMapTileOverlay }.first
             needsReplace = existing?.layer != owmLayer
@@ -80,9 +83,22 @@ struct MapKitRadarView: UIViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
+    /// True when the coordinate has moved far enough to count as a real location
+    /// switch (rather than device-GPS jitter), or when it first becomes available.
+    private static func coordinateMoved(
+        from old: CLLocationCoordinate2D?,
+        to new: CLLocationCoordinate2D?
+    ) -> Bool {
+        guard let new else { return false }
+        guard let old else { return true }
+        let a = CLLocation(latitude: old.latitude, longitude: old.longitude)
+        let b = CLLocation(latitude: new.latitude, longitude: new.longitude)
+        return a.distance(from: b) > 1_000
+    }
+
     @MainActor
     final class Coordinator: NSObject, MKMapViewDelegate {
-        var hasCenteredOnUser = false
+        var lastCenteredRecenterID: Int = -1
         var userCoordinate: CLLocationCoordinate2D? = nil
         private var isSnappingBack = false
 
@@ -163,6 +179,7 @@ private func coordinate(from origin: CLLocationCoordinate2D,
 
 struct RadarMapView: View {
     @State private var viewModel = RadarMapViewModel()
+    @State private var selectionStore = LocationSelectionStore.shared
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -172,7 +189,8 @@ struct RadarMapView: View {
                 snapshot: viewModel.currentSnapshot,
                 forecastOffset: viewModel.frames[viewModel.selectedFrameIndex],
                 owmLayer: viewModel.selectedOWMLayer,
-                userCoordinate: viewModel.userCoordinate
+                userCoordinate: viewModel.userCoordinate,
+                recenterID: viewModel.recenterID
             )
             .ignoresSafeArea()
 
@@ -194,6 +212,9 @@ struct RadarMapView: View {
             tileLoadingIndicator
         }
         .task { await viewModel.loadSnapshot() }
+        .onChange(of: selectionStore.selection) { _, _ in
+            viewModel.handleSelectionChange()
+        }
         .onDisappear { viewModel.stopAnimation() }
     }
 

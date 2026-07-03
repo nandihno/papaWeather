@@ -29,6 +29,7 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 aiSection
+                savedLocationsSection
                 weeklyPlannerSection
                 weatherStationsSection
                 radarSection
@@ -122,6 +123,27 @@ struct SettingsView: View {
             $saturdayActivity
         case .sunday:
             $sundayActivity
+        }
+    }
+
+    // MARK: - Saved Locations
+
+    @ViewBuilder
+    private var savedLocationsSection: some View {
+        Section {
+            NavigationLink {
+                SavedLocationsView()
+            } label: {
+                LabeledContent("My Locations") {
+                    let count = LocationSelectionStore.shared.saved.count
+                    Text(count == 0 ? "My Location only" : "\(count) saved")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            Text("Locations")
+        } footer: {
+            Text("Add suburbs to check their weather. Switch between “My Location” and your saved suburbs from the title bar on any tab — all tabs follow the selection.")
         }
     }
 
