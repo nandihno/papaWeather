@@ -511,10 +511,14 @@ final class WeatherService {
         on date: Date,
         dayMarker: String?
     ) -> Date? {
-        guard let time = time?.trimmingCharacters(in: .whitespacesAndNewlines),
-              time.count == 4,
-              let hour = Int(time.prefix(2)),
-              let minute = Int(time.suffix(2)) else {
+        // The API returns times as either "HHMM" or "HH:MM"; normalise to 4 digits.
+        guard let raw = time?.trimmingCharacters(in: .whitespacesAndNewlines) else {
+            return nil
+        }
+        let digits = raw.replacingOccurrences(of: ":", with: "")
+        guard digits.count == 4,
+              let hour = Int(digits.prefix(2)),
+              let minute = Int(digits.suffix(2)) else {
             return nil
         }
 
