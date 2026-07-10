@@ -613,7 +613,6 @@ private struct FeelsLikeColumn: View {
 
             Text("\(hour.feelsLike)°")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.purple)
 
             Text("feels")
                 .font(.system(size: 8))

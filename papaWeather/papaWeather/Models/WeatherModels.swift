@@ -37,6 +37,69 @@ struct WeatherInfo: Identifiable {
     var latest: WeatherObservation? { observations.first }
 }
 
+// MARK: - Driving Weather
+
+/// A deliberately compact weather payload for glanceable in-car experiences.
+/// It excludes radar, astronomy, daily forecasts, and generated AI commentary.
+struct DrivingWeatherSummary {
+    let locality: String
+    let stationName: String
+    let current: WeatherObservation
+    let upcomingHours: [HourlyForecastHour]
+    let fetchedAt: Date
+
+    var rainOutlook: String {
+        guard let wettest = upcomingHours.max(by: { $0.rainChance < $1.rainChance }) else {
+            return "Hourly rain forecast unavailable"
+        }
+
+        switch wettest.rainChance {
+        case 70...:
+            return "Rain likely around \(wettest.time) (\(wettest.rainChance)%)"
+        case 40...:
+            return "Possible rain around \(wettest.time) (\(wettest.rainChance)%)"
+        default:
+            return "Low rain chance for the next 6 hours"
+        }
+    }
+
+    var windOutlook: String {
+        guard let strongest = upcomingHours.max(by: { effectiveWindSpeed(for: $0) < effectiveWindSpeed(for: $1) }) else {
+            return "\(current.windDir) \(current.windSpeedKmh) km/h"
+        }
+        if strongest.gustSpeedKmh > 0 {
+            return "\(strongest.windDirection) wind, gusts up to \(strongest.gustSpeedKmh) km/h"
+        }
+        return "\(strongest.windDirection) wind up to \(strongest.windSpeedKmh) km/h"
+    }
+
+    var drivingOutlook: String {
+        guard !upcomingHours.isEmpty else {
+            return "Hourly driving outlook unavailable."
+        }
+        let peakWind = upcomingHours.map(effectiveWindSpeed).max() ?? current.windSpeedKmh
+        let peakRain = upcomingHours.map(\.rainChance).max() ?? 0
+
+        if peakWind >= 80 {
+            return "Very strong gusts possible. Take extra care on exposed roads."
+        }
+        if peakWind >= 60 {
+            return "Strong gusts possible during this drive."
+        }
+        if peakRain >= 70 {
+            return "Wet driving conditions are likely in the next few hours."
+        }
+        if peakRain >= 40 {
+            return "Some wet roads are possible in the next few hours."
+        }
+        return "No significant rain or wind indicated for the next few hours."
+    }
+
+    private func effectiveWindSpeed(for hour: HourlyForecastHour) -> Int {
+        max(hour.windSpeedKmh, hour.gustSpeedKmh)
+    }
+}
+
 // MARK: - Hourly Forecast
 
 struct HourlyForecastHour: Identifiable {
@@ -52,6 +115,19 @@ struct HourlyForecastHour: Identifiable {
     let relativeHumidity: Int
     let iconDescriptor: String
     let isNight: Bool
+
+    var symbolName: String {
+        let descriptor = iconDescriptor.lowercased()
+        if descriptor.contains("storm") || descriptor.contains("thunder") { return "cloud.bolt.rain.fill" }
+        if descriptor.contains("shower") || descriptor.contains("rain") { return "cloud.rain.fill" }
+        if descriptor.contains("cloudy") && isNight { return "cloud.moon.fill" }
+        if descriptor.contains("cloudy") { return "cloud.fill" }
+        if descriptor.contains("partly") || descriptor.contains("mostly_sunny") {
+            return isNight ? "cloud.moon.fill" : "cloud.sun.fill"
+        }
+        if descriptor.contains("hazy") || descriptor.contains("fog") { return "cloud.fog.fill" }
+        return isNight ? "moon.stars.fill" : "sun.max.fill"
+    }
 }
 
 struct HourlyForecastInfo {

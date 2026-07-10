@@ -24,7 +24,7 @@ struct HourlyForecastCard: View {
                                         .font(.caption.weight(.semibold))
                                         .foregroundStyle(.secondary)
 
-                                    Image(systemName: hourlySymbol(for: hour))
+                                    Image(systemName: hour.symbolName)
                                         .font(.title3)
                                         .foregroundStyle(hourlySymbolColor(for: hour))
                                         .frame(height: 24)
@@ -57,20 +57,6 @@ struct HourlyForecastCard: View {
                 }
             }
         }
-    }
-
-    private func hourlySymbol(for hour: HourlyForecastHour) -> String {
-        let desc = hour.iconDescriptor.lowercased()
-        if desc.contains("storm") || desc.contains("thunder")       { return "cloud.bolt.rain.fill" }
-        if desc.contains("shower") || desc.contains("rain")         { return "cloud.rain.fill" }
-        if desc.contains("cloudy") && hour.isNight                  { return "cloud.moon.fill" }
-        if desc.contains("cloudy")                                   { return "cloud.fill" }
-        if desc.contains("partly") || desc.contains("mostly_sunny") {
-            return hour.isNight ? "cloud.moon.fill" : "cloud.sun.fill"
-        }
-        if desc.contains("hazy") || desc.contains("fog")            { return "cloud.fog.fill" }
-        if hour.isNight                                              { return "moon.stars.fill" }
-        return "sun.max.fill"
     }
 
     private func hourlySymbolColor(for hour: HourlyForecastHour) -> Color {

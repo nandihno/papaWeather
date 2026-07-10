@@ -11,6 +11,7 @@ import MapKit
 
 enum WeatherError: LocalizedError {
     case noStations
+    case noObservation
     case noForecastLocation
     case network(Error)
     case decoding(Error)
@@ -18,6 +19,7 @@ enum WeatherError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noStations:         return "No weather stations available."
+        case .noObservation:      return "No current weather observation is available."
         case .noForecastLocation: return "No BOM forecast location found for current coordinates."
         case .network(let e):     return "Network error: \(e.localizedDescription)"
         case .decoding(let e):    return "Data error: \(e.localizedDescription)"
@@ -38,6 +40,14 @@ final class WeatherService {
         config.timeoutIntervalForRequest = 15
         return URLSession(configuration: config)
     }()
+
+    private struct DrivingWeatherCacheEntry {
+        let coordinateKey: String
+        let summary: DrivingWeatherSummary
+    }
+
+    private var drivingWeatherCache: DrivingWeatherCacheEntry?
+    private static let drivingWeatherCacheLifetime: TimeInterval = 10 * 60
 
     private init() {}
 
@@ -103,6 +113,51 @@ final class WeatherService {
     func fetchWeather() async throws -> WeatherInfo {
         let deviceLocation = try await locationManager.currentLocation()
         return try await fetchWeather(for: deviceLocation)
+    }
+
+    /// Fetches only the datasets needed by CarPlay and other glanceable driving surfaces.
+    /// The result is cached because BOM observations and forecasts do not require rapid polling.
+    func fetchDrivingWeather(forceRefresh: Bool = false) async throws -> DrivingWeatherSummary {
+        let location = try await locationManager.currentLocation()
+        let coordinateKey = String(
+            format: "%.2f,%.2f",
+            location.coordinate.latitude,
+            location.coordinate.longitude
+        )
+
+        if !forceRefresh,
+           let cached = drivingWeatherCache,
+           cached.coordinateKey == coordinateKey,
+           Date.now.timeIntervalSince(cached.summary.fetchedAt) < Self.drivingWeatherCacheLifetime {
+            return cached.summary
+        }
+
+        let bomLocation = try? await fetchLocationLookup(
+            lat: location.coordinate.latitude,
+            lon: location.coordinate.longitude
+        ).data.first
+
+        async let weatherTask = fetchWeather(for: location)
+        async let hourlyTask = fetchHourlyForecast(bomLocation: bomLocation)
+        async let localityTask = resolveLocality(preset: nil, location: location)
+
+        let weather = try await weatherTask
+        guard let current = weather.latest else { throw WeatherError.noObservation }
+        let hourly = try? await hourlyTask
+        let locality = await localityTask
+
+        let summary = DrivingWeatherSummary(
+            locality: locality ?? bomLocation?.name ?? weather.stationName,
+            stationName: weather.stationName,
+            current: current,
+            upcomingHours: Array((hourly?.hours ?? []).prefix(6)),
+            fetchedAt: .now
+        )
+        drivingWeatherCache = DrivingWeatherCacheEntry(
+            coordinateKey: coordinateKey,
+            summary: summary
+        )
+        return summary
     }
 
     // MARK: - Private pipeline
