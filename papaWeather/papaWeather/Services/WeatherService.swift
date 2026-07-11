@@ -32,6 +32,7 @@ enum WeatherError: LocalizedError {
 final class WeatherService {
     static let shared = WeatherService()
     private static let weatherBaseURL = "https://api.weather.bom.gov.au/v1"
+    private static let warningsBaseURL = "https://api.bom.gov.au/apikey/v1/warnings"
     private static let astronomicalURL = URL(string: "https://api.geodesyapps.ga.gov.au/astronomical/submitRequest")!
 
     private let locationManager = LocationManager()
@@ -65,6 +66,8 @@ final class WeatherService {
         let hourlyForecast: HourlyForecastInfo?
         let astronomy: AstronomicalInfo?
         let locality: String?
+        /// `nil` when the warnings fetch failed — distinct from "no warnings".
+        let warnings: [WeatherWarningInfo]?
     }
 
     /// Fetches the full weather bundle for a location.
@@ -96,17 +99,20 @@ final class WeatherService {
         async let hourlyTask = fetchHourlyForecast(bomLocation: bomLocation)
         async let astronomyTask = fetchAstronomy(for: location)
         async let localityTask = resolveLocality(preset: presetLocalityName, location: location)
+        async let warningsTask = fetchWarnings(for: location)
         let weather = try await weatherTask
         let forecast = try? await forecastTask
         let hourly = try? await hourlyTask
         let astronomy = try? await astronomyTask
         let locality = await localityTask
+        let warnings = try? await warningsTask
         return WeatherBundle(
             weather: weather,
             forecast: forecast,
             hourlyForecast: hourly,
             astronomy: astronomy,
-            locality: locality
+            locality: locality,
+            warnings: warnings
         )
     }
 
@@ -140,17 +146,20 @@ final class WeatherService {
         async let weatherTask = fetchWeather(for: location)
         async let hourlyTask = fetchHourlyForecast(bomLocation: bomLocation)
         async let localityTask = resolveLocality(preset: nil, location: location)
+        async let warningsTask = fetchWarnings(for: location)
 
         let weather = try await weatherTask
         guard let current = weather.latest else { throw WeatherError.noObservation }
         let hourly = try? await hourlyTask
         let locality = await localityTask
+        let warnings = (try? await warningsTask) ?? []
 
         let summary = DrivingWeatherSummary(
             locality: locality ?? bomLocation?.name ?? weather.stationName,
             stationName: weather.stationName,
             current: current,
             upcomingHours: Array((hourly?.hours ?? []).prefix(6)),
+            warnings: warnings,
             fetchedAt: .now
         )
         drivingWeatherCache = DrivingWeatherCacheEntry(
@@ -158,6 +167,130 @@ final class WeatherService {
             summary: summary
         )
         return summary
+    }
+
+    // MARK: - Warnings
+
+    /// Fetches current BOM warnings covering the given coordinate.
+    /// The BOM API expects `area_code` as `longitude,latitude` and rejects
+    /// coordinates with more than 2 decimal places, so GPS fixes are rounded.
+    func fetchWarnings(for location: CLLocation) async throws -> [WeatherWarningInfo] {
+        var components = URLComponents(string: "\(Self.warningsBaseURL)/list")
+        components?.queryItems = [
+            URLQueryItem(name: "area_type", value: "coordinate"),
+            URLQueryItem(
+                name: "area_code",
+                value: String(
+                    format: "%.2f,%.2f",
+                    location.coordinate.longitude,
+                    location.coordinate.latitude
+                )
+            )
+        ]
+        guard let url = components?.url else { throw WeatherError.noForecastLocation }
+
+        let rawData: Data
+        do {
+            let (data, response) = try await session.data(from: url)
+            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                print("✕ Warnings list failed: HTTP \(http.statusCode)")
+                throw WeatherError.noForecastLocation
+            }
+            rawData = data
+        } catch let error as WeatherError {
+            throw error
+        } catch {
+            try rethrowIfCancelled(error)
+            throw WeatherError.network(error)
+        }
+
+        let response: BOMWarningListResponse
+        do {
+            response = try JSONDecoder().decode(BOMWarningListResponse.self, from: rawData)
+        } catch {
+            throw WeatherError.decoding(error)
+        }
+
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime]
+
+        return response.warnings.map { item in
+            WeatherWarningInfo(
+                id: item.id,
+                title: item.title?.bomPlainText ?? "Weather Warning",
+                subtitle: item.subTitle?.bomPlainText ?? "",
+                phenomena: item.phenomenaSummary?.bomPlainText,
+                issuedAt: item.issueDatetimeUtc.flatMap { iso.date(from: $0) },
+                expiresAt: item.expiresDatetimeUtc.flatMap { iso.date(from: $0) },
+                issueType: item.issueType,
+                typeCode: item.type ?? "",
+                severityCodes: item.severityCode ?? [],
+                stateCode: item.areaStateCode
+            )
+        }
+    }
+
+    /// Fetches the full text of a single warning by its BOM product id.
+    func fetchWarningDetail(id: String) async throws -> WeatherWarningDetail {
+        guard let url = URL(string: "\(Self.warningsBaseURL)/warning/\(id)") else {
+            throw WeatherError.noForecastLocation
+        }
+
+        let rawData: Data
+        do {
+            let (data, response) = try await session.data(from: url)
+            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                print("✕ Warning detail failed: HTTP \(http.statusCode) for \(id)")
+                throw WeatherError.noForecastLocation
+            }
+            rawData = data
+        } catch let error as WeatherError {
+            throw error
+        } catch {
+            try rethrowIfCancelled(error)
+            throw WeatherError.network(error)
+        }
+
+        let response: BOMWarningDetailResponse
+        do {
+            response = try JSONDecoder().decode(BOMWarningDetailResponse.self, from: rawData)
+        } catch {
+            throw WeatherError.decoding(error)
+        }
+
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime]
+        let warning = response.warning
+
+        let adviceLines = (warning.advice?.bomPlainText ?? "")
+            .components(separatedBy: "\n")
+            .map { line -> String in
+                line.hasPrefix("* ") ? String(line.dropFirst(2)) : line
+            }
+            .filter { !$0.isEmpty }
+
+        // The hazard block carries the summary; a companion block carries
+        // the headline and weather situation.
+        let infoBlocks = warning.info ?? []
+        let headline = infoBlocks.compactMap(\.headline).first?.bomPlainText
+        let situation = infoBlocks.compactMap(\.situation).first?.bomPlainText
+        let summary = infoBlocks.compactMap(\.summary).first?.bomPlainText
+
+        return WeatherWarningDetail(
+            id: warning.id,
+            title: warning.title?.bomPlainText ?? "Weather Warning",
+            subtitle: warning.subTitle?.bomPlainText ?? "",
+            issueType: warning.issueType,
+            issuedAt: response.meta?.issueDatetimeUtc.flatMap { iso.date(from: $0) },
+            expiresAt: warning.expiresDatetimeUtc.flatMap { iso.date(from: $0) },
+            nextIssue: warning.nextIssue?.bomPlainText,
+            adviceLines: adviceLines,
+            areaSummary: warning.areaSummary?.bomPlainText,
+            phenomena: warning.phenomenaSummary?.bomPlainText,
+            headline: headline,
+            situation: situation,
+            summary: summary
+        )
     }
 
     // MARK: - Private pipeline
@@ -417,7 +550,7 @@ final class WeatherService {
             .prefix(48)
             .map { point in
                 let raw = (point.cloud ?? "").trimmingCharacters(in: .whitespaces)
-                let cloud = (raw.isEmpty || raw == "-") ? "Sunny" : raw
+                let cloud = (raw.isEmpty || raw == "-") ? "Clear" : raw
 
                 let windDir = (point.windDir?.trimmingCharacters(in: .whitespaces) ?? "")
                     .replacingOccurrences(of: "-", with: "—")

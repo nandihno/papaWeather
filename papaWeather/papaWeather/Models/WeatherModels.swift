@@ -18,12 +18,14 @@ struct WeatherObservation: Identifiable {
     let windDir: String
     let windSpeedKmh: Int
 
-    var symbolName: String {
+    func symbolName(isNight: Bool) -> String {
         let c = cloud.lowercased()
-        if c == "sunny" || c == "clear" || c.hasPrefix("fine") { return "sun.max.fill" }
+        if c == "sunny" || c == "clear" || c.hasPrefix("fine") {
+            return isNight ? "moon.stars.fill" : "sun.max.fill"
+        }
         if c.contains("shower") || c.contains("rain")          { return "cloud.rain.fill" }
         if c.contains("storm") || c.contains("thunder")        { return "cloud.bolt.rain.fill" }
-        if c.contains("partly")                                 { return "cloud.sun.fill" }
+        if c.contains("partly")                                 { return isNight ? "cloud.moon.fill" : "cloud.sun.fill" }
         if c.contains("fog") || c.contains("mist")             { return "cloud.fog.fill" }
         return "cloud.fill"
     }
@@ -46,6 +48,7 @@ struct DrivingWeatherSummary {
     let stationName: String
     let current: WeatherObservation
     let upcomingHours: [HourlyForecastHour]
+    let warnings: [WeatherWarningInfo]
     let fetchedAt: Date
 
     var rainOutlook: String {
@@ -155,6 +158,83 @@ struct AstronomicalInfo {
     let longitude: String
     let timeZoneDescription: String
     let days: [AstronomicalDay]
+}
+
+// MARK: - Weather Warnings
+
+/// A single warning as shown in the Warnings tab list.
+struct WeatherWarningInfo: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let subtitle: String
+    let phenomena: String?
+    let issuedAt: Date?
+    let expiresAt: Date?
+    let issueType: String?
+    let typeCode: String
+    let severityCodes: [String]
+    let stateCode: String?
+
+    /// Anything other than the standard severity is treated as severe.
+    var isSevere: Bool {
+        severityCodes.contains { $0.uppercased() != "STD" }
+    }
+
+    var symbolName: String {
+        let t = "\(title) \(phenomena ?? "") \(typeCode)".lowercased()
+        if t.contains("thunder") || t.contains("storm")            { return "cloud.bolt.rain.fill" }
+        if t.contains("cyclone")                                   { return "hurricane" }
+        if t.contains("tsunami")                                   { return "water.waves.and.arrow.up" }
+        if t.contains("fire")                                      { return "flame.fill" }
+        if t.contains("flood")                                     { return "water.waves.and.arrow.up" }
+        if t.contains("heat")                                      { return "thermometer.sun.fill" }
+        if t.contains("frost")                                     { return "snowflake" }
+        if t.contains("fog")                                       { return "cloud.fog.fill" }
+        if t.contains("sheep") || t.contains("grazier")            { return "cloud.sleet.fill" }
+        if t.contains("tide") || t.contains("coastal") || t.contains("marine") { return "water.waves" }
+        if t.contains("wind") || t.contains("gale")                { return "wind" }
+        if t.contains("rain")                                      { return "cloud.heavyrain.fill" }
+        return "exclamationmark.triangle.fill"
+    }
+}
+
+/// Full detail for one warning, fetched when the user taps a list entry.
+struct WeatherWarningDetail {
+    let id: String
+    let title: String
+    let subtitle: String
+    let issueType: String?
+    let issuedAt: Date?
+    let expiresAt: Date?
+    let nextIssue: String?
+    let adviceLines: [String]
+    let areaSummary: String?
+    let phenomena: String?
+    let headline: String?
+    let situation: String?
+    let summary: String?
+}
+
+extension String {
+    /// BOM warning text arrives wrapped in HTML (`<p>`, `<br>`, entities).
+    /// Returns plain text with paragraphs separated by newlines.
+    var bomPlainText: String {
+        var text = replacingOccurrences(of: "<br\\s*/?>", with: "\n", options: [.regularExpression, .caseInsensitive])
+        text = text.replacingOccurrences(of: "</p>", with: "\n", options: .caseInsensitive)
+        text = text.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        text = text
+            .replacingOccurrences(of: "&nbsp;", with: " ")
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&#39;", with: "'")
+        return text
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n")
+    }
 }
 
 // MARK: - Daily Forecast

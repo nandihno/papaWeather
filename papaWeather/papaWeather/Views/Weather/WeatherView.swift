@@ -24,6 +24,7 @@ struct WeatherView: View {
     @State private var forecastInfo: DailyForecastInfo?
     @State private var hourlyForecast: HourlyForecastInfo?
     @State private var astronomyInfo: AstronomicalInfo?
+    @State private var warnings: [WeatherWarningInfo]?
     @State private var forecastSummary = "No forecast loaded yet."
     @State private var isLoading = false
     @State private var hasLoaded = false
@@ -60,6 +61,21 @@ struct WeatherView: View {
     private var conditionBackground: LinearGradient? {
         WeatherBackground.gradient(for: hourlyForecast?.current, colorScheme: colorScheme)
     }
+    private var stationIsNight: Bool {
+        if let isNight = hourlyForecast?.current?.isNight {
+            return isNight
+        }
+
+        let now = Date.now
+        if let today = astronomyInfo?.days.first(where: { Calendar.current.isDate($0.date, inSameDayAs: now) }),
+           let sunrise = today.sunriseDate,
+           let sunset = today.sunsetDate {
+            return now < sunrise || now >= sunset
+        }
+
+        let hour = Calendar.current.component(.hour, from: now)
+        return hour < 6 || hour >= 18
+    }
     private var weeklyActivityPlan: WeeklyActivityPlan {
         WeeklyActivityPlan(
             monday: mondayActivity,
@@ -94,6 +110,12 @@ struct WeatherView: View {
                     .tabItem {
                         Label("Astro", systemImage: "sun.horizon.fill")
                     }
+
+                warningsTab
+                    .tabItem {
+                        Label("Warnings", systemImage: "exclamationmark.triangle.fill")
+                    }
+                    .badge(warnings?.count ?? 0)
 
                 if radarEnabled {
                     RadarMapView()
@@ -182,7 +204,11 @@ struct WeatherView: View {
         refreshableWeatherTab(spacing: 24) {
             fetchButton
             statusBanner
-            WeatherCard(weather: weather, title: "Weather Station")
+            WeatherCard(
+                weather: weather,
+                title: "Weather Station",
+                isNight: stationIsNight
+            )
             weatherAnalyseCard
         }
     }
@@ -202,6 +228,12 @@ struct WeatherView: View {
     private var astroTab: some View {
         refreshableWeatherTab(spacing: 24) {
             AstroTabView(astronomy: astronomyInfo)
+        }
+    }
+
+    private var warningsTab: some View {
+        refreshableWeatherTab(spacing: 16) {
+            WarningsTabView(warnings: warnings)
         }
     }
 
@@ -469,6 +501,7 @@ struct WeatherView: View {
             hourlyForecast = bundle.hourlyForecast
             forecastInfo = bundle.forecast
             astronomyInfo = bundle.astronomy
+            warnings = bundle.warnings
 
             if let forecast = bundle.forecast {
                 forecastSummary = forecast.debugSummary(limit: 7)
@@ -494,6 +527,7 @@ struct WeatherView: View {
                 weather = MockWeatherService.mockWeather()
                 forecastInfo = nil
                 astronomyInfo = nil
+                warnings = nil
             }
             forecastSummary = "Forecast unavailable (\(error.localizedDescription))"
             statusMessage = "Refresh failed: \(error.localizedDescription)"

@@ -74,24 +74,139 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
                 }
             )
         }
+        if !summary.warnings.isEmpty {
+            actions.append(
+                CPTextButton(title: "Warnings (\(summary.warnings.count))", textStyle: .cancel) { [weak self] _ in
+                    self?.showWarnings()
+                }
+            )
+        }
         actions.append(
             CPTextButton(title: "Refresh", textStyle: .normal) { [weak self] _ in
                 self?.refreshWeather(forceRefresh: true)
             }
         )
 
+        var items = [
+            CPInformationItem(title: "Now", detail: condition),
+            CPInformationItem(title: "Rain", detail: summary.rainOutlook),
+            CPInformationItem(title: "Wind", detail: summary.windOutlook),
+            CPInformationItem(title: "Driving outlook", detail: summary.drivingOutlook),
+            CPInformationItem(title: "Updated", detail: "\(updated) · \(summary.stationName)")
+        ]
+        if !summary.warnings.isEmpty {
+            let noun = summary.warnings.count == 1 ? "warning" : "warnings"
+            items.insert(
+                CPInformationItem(
+                    title: "⚠ Warnings",
+                    detail: "\(summary.warnings.count) active \(noun) for this area"
+                ),
+                at: 0
+            )
+        }
+
         return CPInformationTemplate(
             title: summary.locality,
             layout: .leading,
-            items: [
-                CPInformationItem(title: "Now", detail: condition),
-                CPInformationItem(title: "Rain", detail: summary.rainOutlook),
-                CPInformationItem(title: "Wind", detail: summary.windOutlook),
-                CPInformationItem(title: "Driving outlook", detail: summary.drivingOutlook),
-                CPInformationItem(title: "Updated", detail: "\(updated) · \(summary.stationName)")
-            ],
+            items: items,
             actions: actions
         )
+    }
+
+    // MARK: - Warnings
+
+    private func showWarnings() {
+        guard let summary = latestSummary, !summary.warnings.isEmpty else { return }
+
+        let rows = summary.warnings.map { warning in
+            var details: [String] = []
+            if let issueType = warning.issueType { details.append(issueType) }
+            if let expiresAt = warning.expiresAt {
+                details.append("Until \(expiresAt.formatted(date: .abbreviated, time: .shortened))")
+            }
+            let item = CPListItem(
+                text: warning.title,
+                detailText: details.joined(separator: " · "),
+                image: UIImage(systemName: warning.symbolName)
+            )
+            item.accessoryType = .disclosureIndicator
+            item.handler = { [weak self] _, completion in
+                guard let self else {
+                    completion()
+                    return
+                }
+                self.showWarningDetail(warning, selectionCompletion: completion)
+            }
+            return item
+        }
+
+        let template = CPListTemplate(
+            title: "Warnings",
+            sections: [CPListSection(items: rows)]
+        )
+        interfaceController?.pushTemplate(template, animated: true) { _, _ in }
+    }
+
+    private func showWarningDetail(
+        _ warning: WeatherWarningInfo,
+        selectionCompletion: @escaping () -> Void
+    ) {
+        guard let interfaceController else {
+            selectionCompletion()
+            return
+        }
+
+        Task { [weak self] in
+            guard let self else {
+                selectionCompletion()
+                return
+            }
+
+            var items: [CPInformationItem] = []
+            do {
+                let detail = try await WeatherService.shared.fetchWarningDetail(id: warning.id)
+                if let issuedAt = detail.issuedAt ?? warning.issuedAt {
+                    items.append(CPInformationItem(
+                        title: "Issued",
+                        detail: issuedAt.formatted(date: .abbreviated, time: .shortened)
+                    ))
+                }
+                if let expiresAt = detail.expiresAt ?? warning.expiresAt {
+                    items.append(CPInformationItem(
+                        title: "Expires",
+                        detail: expiresAt.formatted(date: .abbreviated, time: .shortened)
+                    ))
+                }
+                if let area = detail.areaSummary {
+                    items.append(CPInformationItem(title: "Areas", detail: area))
+                }
+                // Keep in-car advice glanceable: first couple of points only.
+                if !detail.adviceLines.isEmpty {
+                    items.append(CPInformationItem(
+                        title: "Advice",
+                        detail: detail.adviceLines.prefix(2).joined(separator: " ")
+                    ))
+                }
+                if let nextIssue = detail.nextIssue {
+                    items.append(CPInformationItem(title: "Next issue", detail: nextIssue))
+                }
+            } catch {
+                items = [
+                    CPInformationItem(title: warning.title, detail: warning.subtitle),
+                    CPInformationItem(title: "Details unavailable", detail: error.localizedDescription)
+                ]
+            }
+
+            let template = CPInformationTemplate(
+                title: warning.title,
+                layout: .leading,
+                items: items,
+                actions: []
+            )
+            interfaceController.pushTemplate(template, animated: true) { _, _ in
+                selectionCompletion()
+            }
+        }
     }
 
     private func showHourlyForecast() {

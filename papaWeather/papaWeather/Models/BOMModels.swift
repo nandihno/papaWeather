@@ -166,6 +166,93 @@ struct BOMHourlyWind: Decodable {
     }
 }
 
+// MARK: - Warnings list
+
+struct BOMWarningListResponse: Decodable {
+    let warnings: [BOMWarningListItem]
+}
+
+struct BOMWarningListItem: Decodable {
+    let id: String
+    let issueDatetimeUtc: String?
+    let expiresDatetimeUtc: String?
+    let title: String?
+    let subTitle: String?
+    let phenomenaSummary: String?
+    let severityCode: [String]?
+    let issueType: String?
+    let type: String?
+    let areaStateCode: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case issueDatetimeUtc   = "issue_datetime_utc"
+        case expiresDatetimeUtc = "expires_datetime_utc"
+        case title
+        case subTitle           = "sub_title"
+        case phenomenaSummary   = "phenomena_summary"
+        case severityCode       = "severity_code"
+        case issueType          = "issue_type"
+        case type
+        case areaStateCode      = "area_state_code"
+    }
+}
+
+// MARK: - Warning detail
+
+struct BOMWarningDetailResponse: Decodable {
+    let meta: BOMWarningMeta?
+    let warning: BOMWarningDetail
+}
+
+struct BOMWarningMeta: Decodable {
+    let issueDatetimeUtc: String?
+
+    enum CodingKeys: String, CodingKey {
+        case issueDatetimeUtc = "issue_datetime_utc"
+    }
+}
+
+struct BOMWarningDetail: Decodable {
+    let id: String
+    let issueType: String?
+    let onsetDatetimeUtc: String?
+    let expiresDatetimeUtc: String?
+    let nextIssue: String?
+    let title: String?
+    let subTitle: String?
+    let advice: String?
+    let areaSummary: String?
+    let phenomenaSummary: String?
+    let issuedAt: String?
+    let info: [BOMWarningInfoBlock]?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case issueType           = "issue_type"
+        case onsetDatetimeUtc    = "onset_datetime_utc"
+        case expiresDatetimeUtc  = "expires_datetime_utc"
+        case nextIssue           = "next_issue"
+        case title
+        case subTitle            = "sub_title"
+        case advice
+        case areaSummary         = "area_summary"
+        case phenomenaSummary    = "phenomena_summary"
+        case issuedAt            = "issued_at"
+        case info
+    }
+}
+
+struct BOMWarningInfoBlock: Decodable {
+    let headline: String?
+    let summary: String?
+    let situation: String?
+
+    enum CodingKeys: String, CodingKey {
+        case headline, summary, situation
+    }
+}
+
 struct BOMForecastNow: Decodable {
     let isNight: Bool?
     let nowLabel: String?

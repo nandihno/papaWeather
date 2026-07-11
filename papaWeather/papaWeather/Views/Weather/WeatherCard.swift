@@ -9,6 +9,7 @@ import Charts
 struct WeatherCard: View {
     let weather: WeatherInfo
     var title: String = "Weather"
+    var isNight = false
     private enum TemperatureSeries: CaseIterable {
         case feelsLike
         case airTemp
@@ -125,7 +126,7 @@ struct WeatherCard: View {
 
                     Spacer()
 
-                    Image(systemName: latest?.symbolName ?? "sun.max.fill")
+                    Image(systemName: latest?.symbolName(isNight: isNight) ?? (isNight ? "moon.stars.fill" : "sun.max.fill"))
                         .font(.system(size: 52))
                         .symbolRenderingMode(.multicolor)
                 }
