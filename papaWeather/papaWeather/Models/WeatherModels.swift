@@ -101,6 +101,44 @@ struct DrivingWeatherSummary {
     private func effectiveWindSpeed(for hour: HourlyForecastHour) -> Int {
         max(hour.windSpeedKmh, hour.gustSpeedKmh)
     }
+
+    // MARK: Glanceable summaries (for CarPlay)
+
+    /// Peak wind (or gust) over the next few hours, falling back to current wind.
+    var peakWindKmh: Int {
+        upcomingHours.map(effectiveWindSpeed).max() ?? current.windSpeedKmh
+    }
+
+    /// Highest rain chance over the next few hours.
+    var peakRainChance: Int {
+        upcomingHours.map(\.rainChance).max() ?? 0
+    }
+
+    /// A traffic-light style read on driving conditions, so the car UI can
+    /// lead with a colour and one word instead of a sentence.
+    enum DrivingCondition {
+        case clear      // green
+        case caution    // orange
+        case hazard     // red
+    }
+
+    var drivingCondition: DrivingCondition {
+        if peakWindKmh >= 60 || peakRainChance >= 70 { return .hazard }
+        if peakWindKmh >= 40 || peakRainChance >= 40 { return .caution }
+        return .clear
+    }
+
+    /// Two or three words summarising the drive, matched to `drivingCondition`.
+    var drivingHeadline: String {
+        switch drivingCondition {
+        case .hazard:
+            return peakWindKmh >= 60 ? "Strong gusts" : "Wet roads likely"
+        case .caution:
+            return peakWindKmh >= 40 ? "Breezy" : "Some rain"
+        case .clear:
+            return "Good driving"
+        }
+    }
 }
 
 // MARK: - Hourly Forecast

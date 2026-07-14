@@ -9,6 +9,10 @@ import UIKit
 /// Presents a deliberately small Driving Task experience: current conditions and
 /// the next six hours. Phone-only features such as radar, settings, and AI analysis
 /// are intentionally excluded.
+///
+/// The layout is built for a glance from the driver's seat: every row leads with a
+/// coloured icon, values are short, and driving conditions are shown as a
+/// traffic-light status rather than a sentence.
 final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     private weak var interfaceController: CPInterfaceController?
     private var refreshTask: Task<Void, Never>?
@@ -61,56 +65,152 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
         )
     }
 
-    private func makeCurrentWeatherTemplate(_ summary: DrivingWeatherSummary) -> CPInformationTemplate {
+    // MARK: - Current weather (root)
+
+    private func makeCurrentWeatherTemplate(_ summary: DrivingWeatherSummary) -> CPListTemplate {
+        var sections: [CPListSection] = []
+
+        // Warnings first — highest priority, colour-coded red/orange.
+        if !summary.warnings.isEmpty {
+            sections.append(CPListSection(items: [warningsSummaryRow(summary)]))
+        }
+
+        // Hero: big condition icon + temperature. Suburb is the template title.
+        sections.append(CPListSection(items: [heroRow(summary)]))
+
+        // Compact, colour-coded metric rows.
+        sections.append(CPListSection(items: [
+            rainRow(summary),
+            windRow(summary),
+            drivingStatusRow(summary),
+            hourlyNavigationRow(summary)
+        ].compactMap { $0 }))
+
+        let template = CPListTemplate(title: summary.locality, sections: sections)
+
+        // Refresh lives in the nav bar as an icon so it doesn't add a text row.
+        let refreshImage = tintedSymbol("arrow.clockwise", color: .label, pointSize: 20)
+            ?? UIImage(systemName: "arrow.clockwise") ?? UIImage()
+        let refresh = CPBarButton(image: refreshImage) { [weak self] _ in
+            self?.refreshWeather(forceRefresh: true)
+        }
+        template.trailingNavigationBarButtons = [refresh]
+
+        return template
+    }
+
+    private func heroRow(_ summary: DrivingWeatherSummary) -> CPListItem {
         let current = summary.current
-        let condition = "\(current.cloud), \(wholeDegrees(current.airTemp))°C (feels \(wholeDegrees(current.apparentTemp))°C)"
-        let updated = summary.fetchedAt.formatted(date: .omitted, time: .shortened)
-
-        var actions: [CPTextButton] = []
-        if !summary.upcomingHours.isEmpty {
-            actions.append(
-                CPTextButton(title: "Next 6 Hours", textStyle: .normal) { [weak self] _ in
-                    self?.showHourlyForecast()
-                }
-            )
-        }
-        if !summary.warnings.isEmpty {
-            actions.append(
-                CPTextButton(title: "Warnings (\(summary.warnings.count))", textStyle: .cancel) { [weak self] _ in
-                    self?.showWarnings()
-                }
-            )
-        }
-        actions.append(
-            CPTextButton(title: "Refresh", textStyle: .normal) { [weak self] _ in
-                self?.refreshWeather(forceRefresh: true)
-            }
+        let isNight = summary.upcomingHours.first?.isNight ?? false
+        let feels = wholeDegrees(current.apparentTemp)
+        let item = CPListItem(
+            text: "\(wholeDegrees(current.airTemp))°  ·  \(current.cloud)",
+            detailText: "Feels \(feels)°",
+            image: weatherSymbol(current.symbolName(isNight: isNight), pointSize: 44)
         )
+        item.handler = { _, completion in completion() }
+        return item
+    }
 
-        var items = [
-            CPInformationItem(title: "Now", detail: condition),
-            CPInformationItem(title: "Rain", detail: summary.rainOutlook),
-            CPInformationItem(title: "Wind", detail: summary.windOutlook),
-            CPInformationItem(title: "Driving outlook", detail: summary.drivingOutlook),
-            CPInformationItem(title: "Updated", detail: "\(updated) · \(summary.stationName)")
-        ]
-        if !summary.warnings.isEmpty {
-            let noun = summary.warnings.count == 1 ? "warning" : "warnings"
-            items.insert(
-                CPInformationItem(
-                    title: "⚠ Warnings",
-                    detail: "\(summary.warnings.count) active \(noun) for this area"
-                ),
-                at: 0
-            )
+    private func rainRow(_ summary: DrivingWeatherSummary) -> CPListItem {
+        let chance = summary.peakRainChance
+        let color: UIColor
+        switch chance {
+        case 70...: color = .systemBlue
+        case 40...: color = .systemTeal
+        default:    color = .systemGray
         }
-
-        return CPInformationTemplate(
-            title: summary.locality,
-            layout: .leading,
-            items: items,
-            actions: actions
+        let item = CPListItem(
+            text: "Rain  \(chance)%",
+            detailText: rainDetail(summary),
+            image: tintedSymbol("drop.fill", color: color)
         )
+        item.handler = { _, completion in completion() }
+        return item
+    }
+
+    private func rainDetail(_ summary: DrivingWeatherSummary) -> String {
+        guard let wettest = summary.upcomingHours.max(by: { $0.rainChance < $1.rainChance }),
+              wettest.rainChance >= 40 else {
+            return "Next 6 h"
+        }
+        return "Peak around \(wettest.time)"
+    }
+
+    private func windRow(_ summary: DrivingWeatherSummary) -> CPListItem {
+        let peak = summary.peakWindKmh
+        let color: UIColor
+        switch peak {
+        case 60...: color = .systemRed
+        case 40...: color = .systemOrange
+        default:    color = .systemGray
+        }
+        let direction = summary.upcomingHours.first?.windDirection ?? summary.current.windDir
+        let item = CPListItem(
+            text: "Wind  \(peak) km/h",
+            detailText: direction,
+            image: tintedSymbol("wind", color: color)
+        )
+        item.handler = { _, completion in completion() }
+        return item
+    }
+
+    private func drivingStatusRow(_ summary: DrivingWeatherSummary) -> CPListItem {
+        let symbol: String
+        let color: UIColor
+        switch summary.drivingCondition {
+        case .clear:
+            symbol = "checkmark.circle.fill"
+            color = .systemGreen
+        case .caution:
+            symbol = "exclamationmark.triangle.fill"
+            color = .systemOrange
+        case .hazard:
+            symbol = "exclamationmark.octagon.fill"
+            color = .systemRed
+        }
+        let item = CPListItem(
+            text: summary.drivingHeadline,
+            detailText: summary.drivingOutlook,
+            image: tintedSymbol(symbol, color: color)
+        )
+        item.handler = { _, completion in completion() }
+        return item
+    }
+
+    private func hourlyNavigationRow(_ summary: DrivingWeatherSummary) -> CPListItem? {
+        guard !summary.upcomingHours.isEmpty else { return nil }
+        let item = CPListItem(
+            text: "Next 6 hours",
+            detailText: nil,
+            image: tintedSymbol("clock.fill", color: .systemGray)
+        )
+        item.accessoryType = .disclosureIndicator
+        item.handler = { [weak self] _, completion in
+            self?.showHourlyForecast()
+            completion()
+        }
+        return item
+    }
+
+    private func warningsSummaryRow(_ summary: DrivingWeatherSummary) -> CPListItem {
+        let count = summary.warnings.count
+        let noun = count == 1 ? "warning" : "warnings"
+        let severe = summary.warnings.contains(where: \.isSevere)
+        let item = CPListItem(
+            text: "\(count) \(noun)",
+            detailText: summary.warnings.first?.title,
+            image: tintedSymbol(
+                "exclamationmark.triangle.fill",
+                color: severe ? .systemRed : .systemOrange
+            )
+        )
+        item.accessoryType = .disclosureIndicator
+        item.handler = { [weak self] _, completion in
+            self?.showWarnings()
+            completion()
+        }
+        return item
     }
 
     // MARK: - Warnings
@@ -127,7 +227,7 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
             let item = CPListItem(
                 text: warning.title,
                 detailText: details.joined(separator: " · "),
-                image: UIImage(systemName: warning.symbolName)
+                image: tintedSymbol(warning.symbolName, color: warning.isSevere ? .systemRed : .systemOrange)
             )
             item.accessoryType = .disclosureIndicator
             item.handler = { [weak self] _, completion in
@@ -209,15 +309,16 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
         }
     }
 
+    // MARK: - Hourly forecast
+
     private func showHourlyForecast() {
         guard let summary = latestSummary, !summary.upcomingHours.isEmpty else { return }
 
         let rows = summary.upcomingHours.map { hour in
-            let gustDetail = hour.gustSpeedKmh > 0 ? " · Gusts \(hour.gustSpeedKmh) km/h" : ""
             let item = CPListItem(
-                text: "\(hour.time)  ·  \(hour.temp)°C",
-                detailText: "Rain \(hour.rainChance)% · Wind \(hour.windDirection) \(hour.windSpeedKmh) km/h\(gustDetail)",
-                image: UIImage(systemName: hour.symbolName)
+                text: "\(hour.time)   \(hour.temp)°",
+                detailText: hourlyDetail(hour),
+                image: weatherSymbol(hour.symbolName)
             )
             item.accessoryType = .disclosureIndicator
             item.handler = { [weak self] _, completion in
@@ -234,6 +335,16 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
             sections: [CPListSection(items: rows)]
         )
         interfaceController?.pushTemplate(template, animated: true) { _, _ in }
+    }
+
+    private func hourlyDetail(_ hour: HourlyForecastHour) -> String {
+        var parts = ["Rain \(hour.rainChance)%"]
+        if hour.gustSpeedKmh > 0 {
+            parts.append("Gusts \(hour.gustSpeedKmh) km/h")
+        } else {
+            parts.append("Wind \(hour.windSpeedKmh) km/h")
+        }
+        return parts.joined(separator: " · ")
     }
 
     private func showHourDetail(
@@ -297,7 +408,7 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
         let item = CPListItem(
             text: title,
             detailText: detail,
-            image: UIImage(systemName: symbol)
+            image: weatherSymbol(symbol)
         )
         // Detail rows are informational. Completing immediately prevents CarPlay
         // from leaving a selection spinner on a row that has no deeper action.
@@ -335,5 +446,38 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
 
     private func wholeDegrees(_ value: Double) -> Int {
         Int(value.rounded())
+    }
+
+    // MARK: - Icon rendering
+
+    /// Renders a weather SF Symbol in its natural multicolour form (yellow sun,
+    /// grey cloud, blue rain) so conditions read at a glance without labels.
+    private func weatherSymbol(_ name: String, pointSize: CGFloat = 34) -> UIImage? {
+        let config = UIImage.SymbolConfiguration(pointSize: pointSize, weight: .semibold)
+            .applying(UIImage.SymbolConfiguration.preferringMulticolor())
+        return flattened(UIImage(systemName: name, withConfiguration: config))
+    }
+
+    /// Renders an SF Symbol in a single deliberate colour (used for status and
+    /// metric rows where the colour itself carries meaning).
+    private func tintedSymbol(_ name: String, color: UIColor, pointSize: CGFloat = 30) -> UIImage? {
+        let config = UIImage.SymbolConfiguration(pointSize: pointSize, weight: .semibold)
+            .applying(UIImage.SymbolConfiguration(hierarchicalColor: color))
+        return flattened(UIImage(systemName: name, withConfiguration: config))
+    }
+
+    /// CarPlay treats a symbol image as a *template* and re-tints it monochrome,
+    /// discarding our colours. Drawing the already-coloured symbol into a bitmap
+    /// produces flat coloured pixels that CarPlay renders as-is.
+    private func flattened(_ image: UIImage?) -> UIImage? {
+        guard let image else { return nil }
+        let format = UIGraphicsImageRendererFormat.default()
+        format.opaque = false
+        format.scale = 3
+        let renderer = UIGraphicsImageRenderer(size: image.size, format: format)
+        let raster = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: image.size))
+        }
+        return raster.withRenderingMode(.alwaysOriginal)
     }
 }
