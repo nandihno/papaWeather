@@ -103,9 +103,10 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
         let current = summary.current
         let isNight = summary.upcomingHours.first?.isNight ?? false
         let feels = wholeDegrees(current.apparentTemp)
+        let updatedTime = summary.fetchedAt.formatted(date: .omitted, time: .shortened)
         let item = CPListItem(
             text: "\(wholeDegrees(current.airTemp))°  ·  \(current.cloud)",
-            detailText: "Feels \(feels)°",
+            detailText: "Feels \(feels)° · Updated \(updatedTime)",
             image: weatherSymbol(current.symbolName(isNight: isNight), pointSize: 44)
         )
         item.handler = { _, completion in completion() }
