@@ -486,6 +486,9 @@ final class WeatherService {
         request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        // The endpoint sits behind a WAF that rejects anything without this exact
+        // Referer (trailing slash included) with a 403.
+        request.setValue("https://geodesyapps.ga.gov.au/", forHTTPHeaderField: "Referer")
         request.httpBody = try JSONEncoder().encode(
             AstronomicalSubmitRequest(
                 type: "sunrisenset",
