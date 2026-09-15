@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import AppIntents
 import FoundationModels
 import CoreLocation
 
@@ -88,6 +89,15 @@ struct WeatherView: View {
         )
     }
 
+    private var currentLocationEntity: WeatherLocationEntity {
+        switch selectionStore.selection {
+        case .currentDevice:
+            return .currentDevice
+        case .saved(let location):
+            return WeatherLocationEntity(savedLocation: location)
+        }
+    }
+
     var body: some View {
         NavigationStack {
             TabView {
@@ -147,6 +157,7 @@ struct WeatherView: View {
             }
         }
         .screenTheme(AppTheme.weather, backgroundOverride: conditionBackground)
+        .appEntityIdentifier(EntityIdentifier(for: currentLocationEntity))
         .animation(.easeInOut(duration: 0.6), value: hourlyForecast?.current?.iconDescriptor)
         .animation(.easeInOut(duration: 0.6), value: hourlyForecast?.current?.isNight)
         .animation(.easeInOut(duration: 0.6), value: hourlyForecast?.current?.temp)
@@ -502,6 +513,9 @@ struct WeatherView: View {
             forecastInfo = bundle.forecast
             astronomyInfo = bundle.astronomy
             warnings = bundle.warnings
+            if bundle.warnings != nil {
+                WeatherWarningSpotlightIndexer.refreshInBackground()
+            }
 
             if let forecast = bundle.forecast {
                 forecastSummary = forecast.debugSummary(limit: 7)

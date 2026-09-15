@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import AppIntents
 
 struct WarningsTabView: View {
     let warnings: [WeatherWarningInfo]?
@@ -15,6 +16,12 @@ struct WarningsTabView: View {
                 VStack(spacing: 16) {
                     ForEach(warnings) { warning in
                         WarningCard(warning: warning)
+                            .appEntityIdentifier(
+                                EntityIdentifier(
+                                    for: WeatherWarningEntity.self,
+                                    identifier: warning.id
+                                )
+                            )
                             // Keep the card at its ideal height — the accent bar
                             // would otherwise absorb the tab's minimum-height slack.
                             .fixedSize(horizontal: false, vertical: true)
@@ -195,6 +202,12 @@ private struct WarningDetailSheet: View {
             }
             .task { await loadDetail() }
         }
+        .appEntityIdentifier(
+            EntityIdentifier(
+                for: WeatherWarningEntity.self,
+                identifier: warning.id
+            )
+        )
     }
 
     private var header: some View {

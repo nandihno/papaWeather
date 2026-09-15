@@ -201,7 +201,7 @@ struct AstronomicalInfo {
 // MARK: - Weather Warnings
 
 /// A single warning as shown in the Warnings tab list.
-struct WeatherWarningInfo: Identifiable, Equatable {
+struct WeatherWarningInfo: Identifiable, Equatable, Codable, Sendable {
     let id: String
     let title: String
     let subtitle: String
@@ -214,7 +214,7 @@ struct WeatherWarningInfo: Identifiable, Equatable {
     let stateCode: String?
 
     /// Anything other than the standard severity is treated as severe.
-    var isSevere: Bool {
+    nonisolated var isSevere: Bool {
         severityCodes.contains { $0.uppercased() != "STD" }
     }
 

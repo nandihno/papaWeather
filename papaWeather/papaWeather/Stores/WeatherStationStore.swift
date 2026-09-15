@@ -32,12 +32,12 @@ final class WeatherStationStore {
 
     private func persist() {
         guard let data = try? JSONEncoder().encode(custom) else { return }
-        UserDefaults.standard.set(data, forKey: storageKey)
+        SharedAppStorage.defaults.set(data, forKey: storageKey)
     }
 
     private func load() {
         guard
-            let data     = UserDefaults.standard.data(forKey: storageKey),
+            let data     = SharedAppStorage.defaults.data(forKey: storageKey),
             let stations = try? JSONDecoder().decode([WeatherStation].self, from: data)
         else { return }
         custom = stations

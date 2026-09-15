@@ -51,26 +51,26 @@ final class LocationSelectionStore {
 
     private func persistSaved() {
         guard let data = try? JSONEncoder().encode(saved) else { return }
-        UserDefaults.standard.set(data, forKey: savedKey)
+        SharedAppStorage.defaults.set(data, forKey: savedKey)
     }
 
     private func persistSelection() {
         switch selection {
         case .currentDevice:
-            UserDefaults.standard.removeObject(forKey: selectionKey)
+            SharedAppStorage.defaults.removeObject(forKey: selectionKey)
         case .saved(let location):
-            UserDefaults.standard.set(location.id.uuidString, forKey: selectionKey)
+            SharedAppStorage.defaults.set(location.id.uuidString, forKey: selectionKey)
         }
     }
 
     private func load() {
-        if let data = UserDefaults.standard.data(forKey: savedKey),
+        if let data = SharedAppStorage.defaults.data(forKey: savedKey),
            let locations = try? JSONDecoder().decode([SavedLocation].self, from: data) {
             saved = locations
         }
 
         // Restore the active selection only if it still exists in the saved list.
-        if let idString = UserDefaults.standard.string(forKey: selectionKey),
+        if let idString = SharedAppStorage.defaults.string(forKey: selectionKey),
            let id = UUID(uuidString: idString),
            let match = saved.first(where: { $0.id == id }) {
             selection = .saved(match)

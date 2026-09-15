@@ -6,8 +6,45 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		BAFCE0012FA07AA5002683F1 /* WeatherIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAFCD0022FA07AA5002683F1 /* WeatherIntents.swift */; };
+		BAFCE0022FA07AA5002683F1 /* WeatherIntentsExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAFCD0032FA07AA5002683F1 /* WeatherIntentsExtension.swift */; };
+		BAFCE0032FA07AA5002683F1 /* WeatherEntities.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAFCD0062FA07AA5002683F1 /* WeatherEntities.swift */; };
+		BAFCE0042FA07AA5002683F1 /* WeatherWarningSpotlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAFCD0072FA07AA5002683F1 /* WeatherWarningSpotlight.swift */; };
+		BAFCE0052FA07AA5002683F1 /* WeatherWarningIndexStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAFCD0082FA07AA5002683F1 /* WeatherWarningIndexStore.swift */; };
+		BAFCE0062FA07AA5002683F1 /* SharedAppStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAFCD0092FA07AA5002683F1 /* SharedAppStorage.swift */; };
+		BAFCE0072FA07AA5002683F1 /* WeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAFCD00A2FA07AA5002683F1 /* WeatherService.swift */; };
+		BAFCE0082FA07AA5002683F1 /* LocationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAFCD00B2FA07AA5002683F1 /* LocationManager.swift */; };
+		BAFCE0092FA07AA5002683F1 /* WeatherModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAFCD00C2FA07AA5002683F1 /* WeatherModels.swift */; };
+		BAFCE00A2FA07AA5002683F1 /* BOMModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAFCD00D2FA07AA5002683F1 /* BOMModels.swift */; };
+		BAFCE00B2FA07AA5002683F1 /* LocationSelectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAFCD00E2FA07AA5002683F1 /* LocationSelectionStore.swift */; };
+		BAFCE00C2FA07AA5002683F1 /* SavedLocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAFCD00F2FA07AA5002683F1 /* SavedLocation.swift */; };
+		BAFCE00D2FA07AA5002683F1 /* WeatherStation.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAFCD0102FA07AA5002683F1 /* WeatherStation.swift */; };
+		BAFCE00E2FA07AA5002683F1 /* WeatherStationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAFCD0112FA07AA5002683F1 /* WeatherStationStore.swift */; };
+		BAFCE00F2FA07AA5002683F1 /* stations.json in Resources */ = {isa = PBXBuildFile; fileRef = BAFCD0122FA07AA5002683F1 /* stations.json */; };
+		BAFCE0102FA07AA5002683F1 /* papaWeatherIntents.appex in Embed ExtensionKit Extensions */ = {isa = PBXBuildFile; fileRef = BAFCD0012FA07AA5002683F1 /* papaWeatherIntents.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		BAFCBC1B2FA07AA5002683F1 /* papaWeather.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = papaWeather.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BAFCD0012FA07AA5002683F1 /* papaWeatherIntents.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = papaWeatherIntents.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		BAFCD0022FA07AA5002683F1 /* WeatherIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherIntents.swift; sourceTree = "<group>"; };
+		BAFCD0032FA07AA5002683F1 /* WeatherIntentsExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherIntentsExtension.swift; sourceTree = "<group>"; };
+		BAFCD0042FA07AA5002683F1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		BAFCD0052FA07AA5002683F1 /* papaWeatherIntents.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = papaWeatherIntents.entitlements; sourceTree = "<group>"; };
+		BAFCD0062FA07AA5002683F1 /* WeatherEntities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = papaWeather/Services/WeatherEntities.swift; sourceTree = SOURCE_ROOT; };
+		BAFCD0072FA07AA5002683F1 /* WeatherWarningSpotlight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = papaWeather/Services/WeatherWarningSpotlight.swift; sourceTree = SOURCE_ROOT; };
+		BAFCD0082FA07AA5002683F1 /* WeatherWarningIndexStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = papaWeather/Services/WeatherWarningIndexStore.swift; sourceTree = SOURCE_ROOT; };
+		BAFCD0092FA07AA5002683F1 /* SharedAppStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = papaWeather/Services/SharedAppStorage.swift; sourceTree = SOURCE_ROOT; };
+		BAFCD00A2FA07AA5002683F1 /* WeatherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = papaWeather/Services/WeatherService.swift; sourceTree = SOURCE_ROOT; };
+		BAFCD00B2FA07AA5002683F1 /* LocationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = papaWeather/Services/LocationManager.swift; sourceTree = SOURCE_ROOT; };
+		BAFCD00C2FA07AA5002683F1 /* WeatherModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = papaWeather/Models/WeatherModels.swift; sourceTree = SOURCE_ROOT; };
+		BAFCD00D2FA07AA5002683F1 /* BOMModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = papaWeather/Models/BOMModels.swift; sourceTree = SOURCE_ROOT; };
+		BAFCD00E2FA07AA5002683F1 /* LocationSelectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = papaWeather/Stores/LocationSelectionStore.swift; sourceTree = SOURCE_ROOT; };
+		BAFCD00F2FA07AA5002683F1 /* SavedLocation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = papaWeather/Stores/SavedLocation.swift; sourceTree = SOURCE_ROOT; };
+		BAFCD0102FA07AA5002683F1 /* WeatherStation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = papaWeather/Stores/WeatherStation.swift; sourceTree = SOURCE_ROOT; };
+		BAFCD0112FA07AA5002683F1 /* WeatherStationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = papaWeather/Stores/WeatherStationStore.swift; sourceTree = SOURCE_ROOT; };
+		BAFCD0122FA07AA5002683F1 /* stations.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = papaWeather/stations.json; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -39,6 +76,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BAFCD1022FA07AA5002683F1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -46,14 +90,40 @@
 			isa = PBXGroup;
 			children = (
 				BAFCBC1D2FA07AA5002683F1 /* papaWeather */,
+				BAFCD2012FA07AA5002683F1 /* papaWeatherIntents */,
 				BAFCBC1C2FA07AA5002683F1 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		BAFCD2012FA07AA5002683F1 /* papaWeatherIntents */ = {
+			isa = PBXGroup;
+			children = (
+				BAFCD0022FA07AA5002683F1 /* WeatherIntents.swift */,
+				BAFCD0032FA07AA5002683F1 /* WeatherIntentsExtension.swift */,
+				BAFCD0042FA07AA5002683F1 /* Info.plist */,
+				BAFCD0052FA07AA5002683F1 /* papaWeatherIntents.entitlements */,
+				BAFCD0062FA07AA5002683F1 /* WeatherEntities.swift */,
+				BAFCD0072FA07AA5002683F1 /* WeatherWarningSpotlight.swift */,
+				BAFCD0082FA07AA5002683F1 /* WeatherWarningIndexStore.swift */,
+				BAFCD0092FA07AA5002683F1 /* SharedAppStorage.swift */,
+				BAFCD00A2FA07AA5002683F1 /* WeatherService.swift */,
+				BAFCD00B2FA07AA5002683F1 /* LocationManager.swift */,
+				BAFCD00C2FA07AA5002683F1 /* WeatherModels.swift */,
+				BAFCD00D2FA07AA5002683F1 /* BOMModels.swift */,
+				BAFCD00E2FA07AA5002683F1 /* LocationSelectionStore.swift */,
+				BAFCD00F2FA07AA5002683F1 /* SavedLocation.swift */,
+				BAFCD0102FA07AA5002683F1 /* WeatherStation.swift */,
+				BAFCD0112FA07AA5002683F1 /* WeatherStationStore.swift */,
+				BAFCD0122FA07AA5002683F1 /* stations.json */,
+			);
+			path = ../papaWeatherIntents;
 			sourceTree = "<group>";
 		};
 		BAFCBC1C2FA07AA5002683F1 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				BAFCBC1B2FA07AA5002683F1 /* papaWeather.app */,
+				BAFCD0012FA07AA5002683F1 /* papaWeatherIntents.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -68,10 +138,12 @@
 				BAFCBC172FA07AA5002683F1 /* Sources */,
 				BAFCBC182FA07AA5002683F1 /* Frameworks */,
 				BAFCBC192FA07AA5002683F1 /* Resources */,
+				BAFCD1042FA07AA5002683F1 /* Embed ExtensionKit Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				BAFCD1062FA07AA5002683F1 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				BAFCBC1D2FA07AA5002683F1 /* papaWeather */,
@@ -82,6 +154,25 @@
 			productName = papaWeather;
 			productReference = BAFCBC1B2FA07AA5002683F1 /* papaWeather.app */;
 			productType = "com.apple.product-type.application";
+		};
+		BAFCD3012FA07AA5002683F1 /* papaWeatherIntents */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BAFCD1082FA07AA5002683F1 /* Build configuration list for PBXNativeTarget "papaWeatherIntents" */;
+			buildPhases = (
+				BAFCD1012FA07AA5002683F1 /* Sources */,
+				BAFCD1022FA07AA5002683F1 /* Frameworks */,
+				BAFCD1032FA07AA5002683F1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = papaWeatherIntents;
+			packageProductDependencies = (
+			);
+			productName = papaWeatherIntents;
+			productReference = BAFCD0012FA07AA5002683F1 /* papaWeatherIntents.appex */;
+			productType = "com.apple.product-type.extensionkit-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -95,6 +186,9 @@
 				TargetAttributes = {
 					BAFCBC1A2FA07AA5002683F1 = {
 						CreatedOnToolsVersion = 26.4.1;
+					};
+					BAFCD3012FA07AA5002683F1 = {
+						CreatedOnToolsVersion = 27.0;
 					};
 				};
 			};
@@ -113,15 +207,56 @@
 			projectRoot = "";
 			targets = (
 				BAFCBC1A2FA07AA5002683F1 /* papaWeather */,
+				BAFCD3012FA07AA5002683F1 /* papaWeatherIntents */,
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXContainerItemProxy section */
+		BAFCD1052FA07AA5002683F1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BAFCBC132FA07AA5002683F1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BAFCD3012FA07AA5002683F1;
+			remoteInfo = papaWeatherIntents;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		BAFCD1062FA07AA5002683F1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BAFCD3012FA07AA5002683F1 /* papaWeatherIntents */;
+			targetProxy = BAFCD1052FA07AA5002683F1 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		BAFCD1042FA07AA5002683F1 /* Embed ExtensionKit Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(EXTENSIONS_FOLDER_PATH)";
+			dstSubfolderSpec = 16;
+			files = (
+				BAFCE0102FA07AA5002683F1 /* papaWeatherIntents.appex in Embed ExtensionKit Extensions */,
+			);
+			name = "Embed ExtensionKit Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXResourcesBuildPhase section */
 		BAFCBC192FA07AA5002683F1 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BAFCD1032FA07AA5002683F1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BAFCE00F2FA07AA5002683F1 /* stations.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -132,6 +267,27 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BAFCD1012FA07AA5002683F1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BAFCE0012FA07AA5002683F1 /* WeatherIntents.swift in Sources */,
+				BAFCE0022FA07AA5002683F1 /* WeatherIntentsExtension.swift in Sources */,
+				BAFCE0032FA07AA5002683F1 /* WeatherEntities.swift in Sources */,
+				BAFCE0042FA07AA5002683F1 /* WeatherWarningSpotlight.swift in Sources */,
+				BAFCE0052FA07AA5002683F1 /* WeatherWarningIndexStore.swift in Sources */,
+				BAFCE0062FA07AA5002683F1 /* SharedAppStorage.swift in Sources */,
+				BAFCE0072FA07AA5002683F1 /* WeatherService.swift in Sources */,
+				BAFCE0082FA07AA5002683F1 /* LocationManager.swift in Sources */,
+				BAFCE0092FA07AA5002683F1 /* WeatherModels.swift in Sources */,
+				BAFCE00A2FA07AA5002683F1 /* BOMModels.swift in Sources */,
+				BAFCE00B2FA07AA5002683F1 /* LocationSelectionStore.swift in Sources */,
+				BAFCE00C2FA07AA5002683F1 /* SavedLocation.swift in Sources */,
+				BAFCE00D2FA07AA5002683F1 /* WeatherStation.swift in Sources */,
+				BAFCE00E2FA07AA5002683F1 /* WeatherStationStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -191,7 +347,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -249,7 +405,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -268,7 +424,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = papaWeather/papaWeather.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 14;
 				DEVELOPMENT_TEAM = D58U53H2X6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -276,7 +432,6 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.weather";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "papaWeather uses your location to find the nearest BOM weather station and local sunrise and sunset times.";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = NO;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -285,7 +440,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.93;
+				MARKETING_VERSION = 1.94;
 				PRODUCT_BUNDLE_IDENTIFIER = org.nando.papaWeather;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -307,7 +462,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = papaWeather/papaWeather.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 13;
+				CURRENT_PROJECT_VERSION = 14;
 				DEVELOPMENT_TEAM = D58U53H2X6;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -315,7 +470,6 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.weather";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "papaWeather uses your location to find the nearest BOM weather station and local sunrise and sunset times.";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = NO;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -324,10 +478,70 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.93;
+				MARKETING_VERSION = 1.94;
 				PRODUCT_BUNDLE_IDENTIFIER = org.nando.papaWeather;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		BAFCD1092FA07AA5002683F1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = ../papaWeatherIntents/papaWeatherIntents.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 14;
+				DEVELOPMENT_TEAM = D58U53H2X6;
+				ENABLE_PREVIEWS = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ../papaWeatherIntents/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.94;
+				PRODUCT_BUNDLE_IDENTIFIER = org.nando.papaWeather.intents;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		BAFCD10A2FA07AA5002683F1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = ../papaWeatherIntents/papaWeatherIntents.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 14;
+				DEVELOPMENT_TEAM = D58U53H2X6;
+				ENABLE_PREVIEWS = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ../papaWeatherIntents/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.94;
+				PRODUCT_BUNDLE_IDENTIFIER = org.nando.papaWeather.intents;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -354,6 +568,15 @@
 			buildConfigurations = (
 				BAFCBC272FA07AA7002683F1 /* Debug */,
 				BAFCBC282FA07AA7002683F1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BAFCD1082FA07AA5002683F1 /* Build configuration list for PBXNativeTarget "papaWeatherIntents" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BAFCD1092FA07AA5002683F1 /* Debug */,
+				BAFCD10A2FA07AA5002683F1 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

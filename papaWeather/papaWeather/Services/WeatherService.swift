@@ -214,7 +214,7 @@ final class WeatherService {
         let iso = ISO8601DateFormatter()
         iso.formatOptions = [.withInternetDateTime]
 
-        return response.warnings.map { item in
+        let warnings = response.warnings.map { item in
             WeatherWarningInfo(
                 id: item.id,
                 title: item.title?.bomPlainText ?? "Weather Warning",
@@ -228,6 +228,8 @@ final class WeatherService {
                 stateCode: item.areaStateCode
             )
         }
+        WeatherWarningIndexStore.save(warnings, for: location.coordinate)
+        return warnings
     }
 
     /// Fetches the full text of a single warning by its BOM product id.

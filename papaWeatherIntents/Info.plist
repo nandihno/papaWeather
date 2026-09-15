@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>papaWeather</string>
+	<key>EXAppExtensionAttributes</key>
+	<dict>
+		<key>EXExtensionPointIdentifier</key>
+		<string>com.apple.appintents-extension</string>
+	</dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>papaWeather uses your location to find the nearest BOM weather station and local sunrise and sunset times.</string>
+</dict>
+</plist>
