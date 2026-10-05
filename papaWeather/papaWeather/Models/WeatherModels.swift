@@ -47,6 +47,9 @@ struct DrivingWeatherSummary {
     let locality: String
     let stationName: String
     let current: WeatherObservation
+    /// BOM forecast for the current hour — the same source as the Hourly tab's
+    /// "Current Conditions" card. Preferred over the station observation for display.
+    let currentHour: HourlyForecastHour?
     let upcomingHours: [HourlyForecastHour]
     let warnings: [WeatherWarningInfo]
     let fetchedAt: Date

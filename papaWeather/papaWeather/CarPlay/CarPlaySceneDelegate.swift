@@ -100,14 +100,27 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
     }
 
     private func heroRow(_ summary: DrivingWeatherSummary) -> CPListItem {
-        let current = summary.current
-        let isNight = summary.upcomingHours.first?.isNight ?? false
-        let feels = wholeDegrees(current.apparentTemp)
         let updatedTime = summary.fetchedAt.formatted(date: .omitted, time: .shortened)
+        let text: String
+        let feels: Int
+        let symbol: String
+        // Match the iOS Hourly tab: use the BOM hourly forecast's current hour,
+        // falling back to the nearest station observation if it's unavailable.
+        if let hour = summary.currentHour {
+            text = "\(hour.temp)°  ·  \(conditionLabel(for: hour))"
+            feels = hour.feelsLike
+            symbol = hour.symbolName
+        } else {
+            let current = summary.current
+            let isNight = summary.upcomingHours.first?.isNight ?? false
+            text = "\(wholeDegrees(current.airTemp))°  ·  \(current.cloud)"
+            feels = wholeDegrees(current.apparentTemp)
+            symbol = current.symbolName(isNight: isNight)
+        }
         let item = CPListItem(
-            text: "\(wholeDegrees(current.airTemp))°  ·  \(current.cloud)",
+            text: text,
             detailText: "Feels \(feels)° · Updated \(updatedTime)",
-            image: weatherSymbol(current.symbolName(isNight: isNight), pointSize: 44)
+            image: weatherSymbol(symbol, pointSize: 44)
         )
         item.handler = { _, completion in completion() }
         return item

@@ -158,6 +158,7 @@ final class WeatherService {
             locality: locality ?? bomLocation?.name ?? weather.stationName,
             stationName: weather.stationName,
             current: current,
+            currentHour: hourly?.current,
             upcomingHours: Array((hourly?.hours ?? []).prefix(6)),
             warnings: warnings,
             fetchedAt: .now

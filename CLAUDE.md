@@ -68,7 +68,18 @@ The provider is selected via `@AppStorage("aiProvider")` and toggled in `Setting
 
 ### State persistence
 
-- Custom weather stations — `WeatherStationStore` persists to `UserDefaults` (`papaWeather.customWeatherStations`).
+- Custom weather stations — `WeatherStationStore` persists to App Group-backed defaults (`papaWeather.customWeatherStations`).
 - Selected map provider and OWM layer — `UserDefaults` keys `mapProvider` and `owmLayer`.
 - Claude API key and AI provider choice — `@AppStorage`.
 - Default stations — bundled `stations.json` decoded lazily via `WeatherStation.loadDefaults()`.
+
+### iOS 27 Spotlight and App Intents integration
+
+- `WeatherWarningEntity` is an App Intents shadow model conforming to `IndexedEntity`; its searchable content is indexed through Core Spotlight, with severe BOM warnings receiving higher ranking.
+- `WeatherWarningEntityQuery` resolves indexed warnings from the shared cache and adopts iOS 27 `IndexedEntityQuery` reindex callbacks.
+- `WeatherWarningIndexStore` stores the latest successful BOM warning list and fetch coordinate in the App Group snapshot; `WeatherWarningSpotlightIndexer` replaces the Spotlight warning set after a successful weather refresh.
+- Spotlight indexing is best-effort and runs in the background through `refreshInBackground()`; weather refresh UI and App Intent responses must not wait on the system indexing service.
+- `WeatherLocationEntity` is an App Intents shadow model for the current device location and saved locations. `WeatherLocationEntityQuery` supports identifier resolution, suggestions, and free-text matching.
+- `GetCurrentConditionsIntent`, `GetForecastIntent`, and `GetWarningsIntent` provide the first read-only system actions. `PapaWeatherAppShortcuts` registers their Siri and Shortcuts phrases.
+- `SharedAppStorage` uses the `group.org.nando.papaWeather` App Group and migrates the existing saved-location and custom-station keys from standard defaults. The signed target entitlement must continue to include that group before adding an App Intents extension or widget.
+- Phases 1 through 3 are implemented in the main app target. `WeatherView` identifies the active `WeatherLocationEntity`; visible warning cards and the warning detail sheet identify their `WeatherWarningEntity`. A dedicated App Intents extension and later long-running/background work remain as separate phases described in `27features.md`.

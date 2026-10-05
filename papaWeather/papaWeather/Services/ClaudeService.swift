@@ -58,11 +58,13 @@ enum ClaudeService {
     static func analyseWeather(
         forecastSummary: String,
         weeklyActivityPlan: WeeklyActivityPlan = WeeklyActivityPlan(),
+        briefingJudgment: BriefingJudgment = .empty,
         apiKey: String
     ) async throws -> String {
         let spec = WeatherAnalysisSpecBuilder.make(
             forecastSummary: forecastSummary,
-            weeklyActivityPlan: weeklyActivityPlan
+            weeklyActivityPlan: weeklyActivityPlan,
+            briefingJudgment: briefingJudgment
         )
         return try await analyse(spec: spec, apiKey: apiKey)
     }
@@ -80,7 +82,8 @@ struct ClaudeAnalysisSpec {
 enum WeatherAnalysisSpecBuilder {
     static func make(
         forecastSummary: String,
-        weeklyActivityPlan: WeeklyActivityPlan = WeeklyActivityPlan()
+        weeklyActivityPlan: WeeklyActivityPlan = WeeklyActivityPlan(),
+        briefingJudgment: BriefingJudgment = .empty
     ) -> ClaudeAnalysisSpec {
         let now = Date()
         let dateFmt = DateFormatter()
@@ -88,14 +91,49 @@ enum WeatherAnalysisSpecBuilder {
         dateFmt.timeStyle = .short
         let dateTimeStr = dateFmt.string(from: now)
 
+        let hasToday = briefingJudgment.today != nil
+        let hasCommute = briefingJudgment.commute != nil
+        let hasWeekFlags = !briefingJudgment.weekFlags.isEmpty
+        let hasActivities = !briefingJudgment.activities.isEmpty
+
+        let activitySection = hasActivities
+            ? ActivityVerdictFormatter.promptText(for: briefingJudgment.activities)
+            : weeklyActivityPlan.promptText
+
+        var judgmentBlocks: [String] = []
+        if let today = briefingJudgment.today { judgmentBlocks.append(BriefingJudgmentFormatter.todayBlock(today)) }
+        if let commute = briefingJudgment.commute { judgmentBlocks.append(BriefingJudgmentFormatter.commuteBlock(commute)) }
+        if hasWeekFlags { judgmentBlocks.append(BriefingJudgmentFormatter.weekBlock(briefingJudgment.weekFlags)) }
+        let judgmentSection = judgmentBlocks.isEmpty ? nil : judgmentBlocks.joined(separator: "\n\n")
+
         let userContent = """
         Today's date and time: \(dateTimeStr)
 
         7-day forecast:
         \(forecastSummary)
-
-        \(weeklyActivityPlan.promptText)
+        \(judgmentSection.map { "\n\($0)\n" } ?? "")
+        \(activitySection)
         """
+
+        let todayInstruction = hasToday
+            ? "TODAY — The clothing, umbrella, sun-protection and best-outdoor-time calls are already decided in the TODAY judgment below. Explain them in plain language using the forecast for colour; do not overrule them."
+            : "TODAY — What to wear, whether to bring an umbrella, UV protection needed, best time for outdoor activity or gym"
+
+        let commuteInstruction = hasCommute
+            ? "COMMUTE — The morning and evening commute impact are already rated in the COMMUTE judgment below. Explain those ratings; do not overrule them."
+            : "COMMUTE — Any weather impact on the morning or evening commute"
+
+        let weekInstruction = hasWeekFlags
+            ? "WEEK AHEAD — Which days deserve attention is already decided in the WEEK AHEAD judgment below, with reasons. Mention the flagged days and why; do not flag or unflag days yourself."
+            : "WEEK AHEAD — Flag any notable days (extreme heat, heavy rain, fire danger)"
+
+        let activitiesInstruction = hasActivities
+            ? "ACTIVITIES — The activity judgments are already decided. Do not overrule them; explain each in plain language using the forecast, mention listed concerns, and suggest a precaution or better timing for Caution or Avoid days. Say a call is borderline when marked so."
+            : "ACTIVITIES — Use the user's weekly activity planner to advise which listed plans are weather-friendly, need timing changes, or should be reconsidered"
+
+        let tipInstruction = hasToday
+            ? "ONE SPECIFIC TIP — The TODAY judgment below already chose this tip's topic. Write one specific, actionable sentence on that topic using the real forecast numbers. If the topic is “no specific tip”, give only a brief general remark instead."
+            : "ONE SPECIFIC TIP — Something actionable based on the forecast"
 
         return ClaudeAnalysisSpec(
             systemPrompt: """
@@ -103,11 +141,11 @@ enum WeatherAnalysisSpecBuilder {
             Your Task:
             Analyse this weather data and provide a brief, practical summary. Focus on:
 
-            1. TODAY — What to wear, whether to bring an umbrella, UV protection needed, best time for outdoor activity or gym
-            2. COMMUTE — Any weather impact on the morning or evening commute
-            3. WEEK AHEAD — Flag any notable days (extreme heat, heavy rain, fire danger)
-            4. ACTIVITIES — Use the user's weekly activity planner to advise which listed plans are weather-friendly, need timing changes, or should be reconsidered
-            5. ONE SPECIFIC TIP — Something actionable based on the forecast
+            1. \(todayInstruction)
+            2. \(commuteInstruction)
+            3. \(weekInstruction)
+            4. \(activitiesInstruction)
+            5. \(tipInstruction)
 
             RULES:
             - Be concise — max 150 words total
@@ -116,7 +154,8 @@ enum WeatherAnalysisSpecBuilder {
             - Don't just repeat the data — interpret it
             - Do not invent activities for blank planner days
             - If the planner has no entries, keep activity advice general and forecast-driven
-            - If fire danger is Extreme or Catastrophic, always highlight this prominently
+            - If fire danger is Extreme or Catastrophic, always highlight this prominently, even if not flagged below
+            - When a judgment block (TODAY / COMMUTE / WEEK AHEAD / ACTIVITIES) is given, treat it as already decided — your job is to narrate it naturally, not to re-derive or contradict it
             - Temperatures in Celsius
             - Use a ## header for each section (e.g. ## Today, ## Commute, ## Week Ahead, ## Tip)
             """,

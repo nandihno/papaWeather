@@ -11,6 +11,8 @@ import CoreLocation
 struct WeatherView: View {
     @AppStorage("claudeApiKey") private var claudeApiKey: String = ""
     @AppStorage("aiProvider") private var aiProviderRaw: String = AIProvider.appleIntelligence.rawValue
+    @AppStorage("typesafeEnabled") private var typesafeEnabled: Bool = false
+    @AppStorage("typesafeApiKey") private var typesafeApiKey: String = ""
     @AppStorage("radarEnabled") private var radarEnabled: Bool = false
     @AppStorage(WeeklyActivityPlannerStorage.monday) private var mondayActivity: String = ""
     @AppStorage(WeeklyActivityPlannerStorage.tuesday) private var tuesdayActivity: String = ""
@@ -34,6 +36,7 @@ struct WeatherView: View {
     @State private var isAnalysing = false
     @State private var analysisResult: String? = nil
     @State private var showAnalysis = false
+    @State private var lastBriefingJudgment: BriefingJudgment = .empty
     @State private var pressureInsight: String? = nil
     @State private var pressureInsightError: String? = nil
     @State private var isAnalysingPressure = false
@@ -376,6 +379,18 @@ struct WeatherView: View {
                             ForEach(weatherParsedSections(result)) { section in
                                 WeatherAnalysisSectionCard(title: section.title, content: section.body)
                             }
+                            if let today = lastBriefingJudgment.today {
+                                JevJudgmentCard(title: "Today — Jev", symbol: "sun.max.fill", color: .orange, rows: todayRows(today))
+                            }
+                            if let commute = lastBriefingJudgment.commute {
+                                JevJudgmentCard(title: "Commute — Jev", symbol: "tram.fill", color: .blue, rows: commuteRows(commute))
+                            }
+                            if !lastBriefingJudgment.weekFlags.isEmpty {
+                                JevJudgmentCard(title: "Week Ahead — Jev", symbol: "calendar", color: .indigo, rows: weekFlagRows(lastBriefingJudgment.weekFlags))
+                            }
+                            if !lastBriefingJudgment.activities.isEmpty {
+                                JevJudgmentCard(title: "Activities — Jev", symbol: "figure.walk", color: .purple, rows: activityRows(lastBriefingJudgment.activities))
+                            }
                         }
                     }
                     .padding()
@@ -448,25 +463,42 @@ struct WeatherView: View {
         }
     }
 
+    /// TypeSafe judgments are best-effort per section: a failure or missing key just
+    /// leaves that section's judgment out, and the prompt falls back to raw data for it.
+    private func briefingJudgment() async -> BriefingJudgment {
+        guard typesafeEnabled, !typesafeApiKey.isEmpty, let forecastInfo else { return .empty }
+        return await TypeSafeService.judgeBriefing(
+            forecast: forecastInfo,
+            hourly: hourlyForecast,
+            plan: weeklyActivityPlan,
+            apiKey: typesafeApiKey
+        )
+    }
+
     private func analyseWeather() {
         analysisResult = nil
+        lastBriefingJudgment = .empty
         isAnalysing    = true
         showAnalysis   = true
 
         Task {
             do {
+                let judgment = await briefingJudgment()
+                lastBriefingJudgment = judgment
                 let result: String
                 switch aiProvider {
                 case .claude:
                     result = try await ClaudeService.analyseWeather(
                         forecastSummary: forecastSummary,
                         weeklyActivityPlan: weeklyActivityPlan,
+                        briefingJudgment: judgment,
                         apiKey: claudeApiKey
                     )
                 case .appleIntelligence:
                     result = try await AppleIntelligenceService.analyseWeather(
                         forecastSummary: forecastSummary,
-                        weeklyActivityPlan: weeklyActivityPlan
+                        weeklyActivityPlan: weeklyActivityPlan,
+                        briefingJudgment: judgment
                     )
                 }
                 analysisResult = result
@@ -474,6 +506,74 @@ struct WeatherView: View {
                 analysisResult = "Error: \(error.localizedDescription)"
             }
             isAnalysing = false
+        }
+    }
+
+    // MARK: - Jev judgment rows
+
+    private func todayRows(_ today: TodayVerdict) -> [JevJudgmentRow] {
+        [
+            JevJudgmentRow(label: "Clothing", value: today.clothing.title, valueColor: .orange, confidence: today.clothingConfidence, note: nil),
+            JevJudgmentRow(label: "Umbrella", value: today.umbrellaProbability >= 0.5 ? "Bring one" : "Not needed", valueColor: .blue, confidence: today.umbrellaProbability, note: nil),
+            JevJudgmentRow(label: "Sun protection", value: today.uvProtectionProbability >= 0.5 ? "Needed" : "Not needed", valueColor: .yellow, confidence: today.uvProtectionProbability, note: nil),
+            JevJudgmentRow(label: "Best outdoor time", value: today.bestOutdoorWindow.title, valueColor: .green, confidence: today.bestOutdoorWindowConfidence, note: nil),
+            JevJudgmentRow(label: "Tip topic", value: today.tipCategory.title, valueColor: .purple, confidence: today.tipCategoryConfidence, note: nil)
+        ]
+    }
+
+    private func commuteRows(_ commute: CommuteVerdict) -> [JevJudgmentRow] {
+        [
+            JevJudgmentRow(label: "Morning", value: commute.morningSeverity.title, valueColor: severityColor(commute.morningSeverity), confidence: commute.morningConfidence, note: nil),
+            JevJudgmentRow(label: "Evening", value: commute.eveningSeverity.title, valueColor: severityColor(commute.eveningSeverity), confidence: commute.eveningConfidence, note: nil)
+        ]
+    }
+
+    private func severityColor(_ severity: CommuteSeverity) -> Color {
+        switch severity {
+        case .noImpact: .green
+        case .minor:    .blue
+        case .moderate: .orange
+        case .severe:   .red
+        }
+    }
+
+    private func weekFlagRows(_ flags: [WeekDayFlag]) -> [JevJudgmentRow] {
+        flags.map { flag in
+            JevJudgmentRow(
+                label: flag.dayTitle,
+                value: flag.isNotable ? "Flagged" : "Routine",
+                valueColor: flag.isNotable ? .orange : .green,
+                confidence: flag.notableProbability,
+                note: flag.concerns.isEmpty ? nil : "Concerns: \(flag.concerns.joined(separator: ", "))"
+            )
+        }
+    }
+
+    private func activityRows(_ verdicts: [ActivityVerdict]) -> [JevJudgmentRow] {
+        verdicts.map { verdict in
+            var note: String?
+            if !verdict.activeConcerns.isEmpty {
+                note = "Concerns: \(verdict.activeConcerns.joined(separator: ", "))"
+            }
+            if verdict.isBorderline {
+                note = (note.map { "\($0) · " } ?? "") + "Borderline call"
+            }
+            return JevJudgmentRow(
+                label: "\(verdict.day.title) — \(verdict.activity)",
+                value: verdict.rating.title,
+                valueColor: ratingColor(verdict.rating),
+                confidence: verdict.confidence,
+                note: note
+            )
+        }
+    }
+
+    private func ratingColor(_ rating: ActivityRating) -> Color {
+        switch rating {
+        case .ideal:    .green
+        case .suitable: .blue
+        case .caution:  .orange
+        case .avoid:    .red
         }
     }
 
@@ -601,5 +701,94 @@ struct WeatherAnalysisSectionCard: View {
         }
         .background(style.color.opacity(0.07))
         .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+}
+
+// MARK: - Jev judgment confidence
+
+/// One judged data point (a rating, a severity, a flag…) with the confidence Jev reported for it.
+struct JevJudgmentRow: Identifiable {
+    let id = UUID()
+    let label: String
+    let value: String
+    let valueColor: Color
+    let confidence: Double
+    let note: String?
+}
+
+struct JevJudgmentCard: View {
+    let title: String
+    let symbol: String
+    let color: Color
+    let rows: [JevJudgmentRow]
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 0) {
+            RoundedRectangle(cornerRadius: 3)
+                .fill(color)
+                .frame(width: 4)
+                .padding(.vertical, 4)
+
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 7) {
+                    Image(systemName: symbol)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(color)
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(color)
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                        if index > 0 {
+                            Divider()
+                        }
+                        JevJudgmentRowView(row: row)
+                    }
+                }
+            }
+            .padding(.leading, 14)
+            .padding(.vertical, 14)
+            .padding(.trailing, 14)
+        }
+        .background(color.opacity(0.07))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+}
+
+private struct JevJudgmentRowView: View {
+    let row: JevJudgmentRow
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(row.label)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.primary)
+                Spacer()
+                Text(row.value)
+                    .font(.caption.weight(.bold))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(row.valueColor.opacity(0.18), in: Capsule())
+                    .foregroundStyle(row.valueColor)
+            }
+
+            HStack(spacing: 6) {
+                ProgressView(value: row.confidence)
+                    .tint(row.valueColor)
+                    .frame(maxWidth: 90)
+                Text("\(Int((row.confidence * 100).rounded()))% confidence")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let note = row.note {
+                Text(note)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 }

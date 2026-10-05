@@ -7,6 +7,8 @@ import SwiftUI
 
 struct SettingsView: View {
     @AppStorage("claudeApiKey") private var claudeApiKey: String = ""
+    @AppStorage("typesafeEnabled") private var typesafeEnabled: Bool = false
+    @AppStorage("typesafeApiKey") private var typesafeApiKey: String = ""
     @AppStorage("aiProvider") private var aiProviderRaw: String = AIProvider.appleIntelligence.rawValue
     @AppStorage("radarEnabled") private var radarEnabled: Bool = false
     @AppStorage(WeeklyActivityPlannerStorage.monday) private var mondayActivity: String = ""
@@ -29,6 +31,7 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 aiSection
+                typesafeSection
                 savedLocationsSection
                 weeklyPlannerSection
                 weatherStationsSection
@@ -72,6 +75,33 @@ struct SettingsView: View {
                 }
             } else {
                 Text("Using Apple Intelligence (on-device) for weather briefings. Toggle on to use Claude AI instead.")
+            }
+        }
+    }
+
+    // MARK: - TypeSafe
+
+    @ViewBuilder
+    private var typesafeSection: some View {
+        Section {
+            Toggle("Structured activity judgments", isOn: $typesafeEnabled)
+
+            if typesafeEnabled {
+                LabeledContent("API Key") {
+                    SecureField("TypeSafe API key", text: $typesafeApiKey)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .multilineTextAlignment(.trailing)
+                }
+            }
+        } header: {
+            Text("TypeSafe")
+        } footer: {
+            if typesafeEnabled && typesafeApiKey.isEmpty {
+                Text("Enter your TypeSafe API key to rate each planned activity before the briefing is written.")
+                    .foregroundStyle(.orange)
+            } else {
+                Text("Rates each weekly planner activity against the forecast, then the briefing explains those ratings.")
             }
         }
     }

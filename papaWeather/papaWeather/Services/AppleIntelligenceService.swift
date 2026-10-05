@@ -32,11 +32,13 @@ enum AppleIntelligenceService {
 
     static func analyseWeather(
         forecastSummary: String,
-        weeklyActivityPlan: WeeklyActivityPlan = WeeklyActivityPlan()
+        weeklyActivityPlan: WeeklyActivityPlan = WeeklyActivityPlan(),
+        briefingJudgment: BriefingJudgment = .empty
     ) async throws -> String {
         let spec = WeatherAnalysisSpecBuilder.make(
             forecastSummary: forecastSummary,
-            weeklyActivityPlan: weeklyActivityPlan
+            weeklyActivityPlan: weeklyActivityPlan,
+            briefingJudgment: briefingJudgment
         )
         return try await analyse(spec: spec)
     }
