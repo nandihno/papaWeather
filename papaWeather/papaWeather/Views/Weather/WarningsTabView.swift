@@ -15,18 +15,20 @@ struct WarningsTabView: View {
             if let warnings, !warnings.isEmpty {
                 VStack(spacing: 16) {
                     ForEach(warnings) { warning in
-                        WarningCard(warning: warning)
-                            .appEntityIdentifier(
-                                EntityIdentifier(
-                                    for: WeatherWarningEntity.self,
-                                    identifier: warning.id
+                        Button {
+                            selectedWarning = warning
+                        } label: {
+                            WarningCard(warning: warning)
+                                .appEntityIdentifier(
+                                    EntityIdentifier(
+                                        for: WeatherWarningEntity.self,
+                                        identifier: warning.id
+                                    )
                                 )
-                            )
-                            // Keep the card at its ideal height — the accent bar
-                            // would otherwise absorb the tab's minimum-height slack.
-                            .fixedSize(horizontal: false, vertical: true)
-                            .contentShape(Rectangle())
-                            .onTapGesture { selectedWarning = warning }
+                                .fixedSize(horizontal: false, vertical: true)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             } else if warnings != nil {

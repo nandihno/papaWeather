@@ -7,6 +7,8 @@ import SwiftUI
 
 struct AstroTabView: View {
     let astronomy: AstronomicalInfo?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var expandedDayId: String?
 
     var body: some View {
@@ -22,24 +24,30 @@ struct AstroTabView: View {
 
                     Divider()
 
-                    HourTickScale()
-                        .padding(.leading, 46)
-                        .padding(.trailing, 4)
+                    if !dynamicTypeSize.isAccessibilitySize {
+                        HourTickScale()
+                            .padding(.leading, 56)
+                            .padding(.trailing, 4)
+                            .accessibilityHidden(true)
+                    }
 
                     VStack(spacing: 0) {
                         ForEach(Array(astronomy.days.enumerated()), id: \.element.id) { index, day in
-                            DayRow(
-                                day: day,
-                                isToday: Calendar.current.isDateInToday(day.date),
-                                isExpanded: expandedDayId == day.id,
-                                showDivider: index < astronomy.days.count - 1
-                            )
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                withAnimation(.spring(duration: 0.25)) {
+                            Button {
+                                withAnimation(reduceMotion ? nil : .spring(duration: 0.25)) {
                                     expandedDayId = expandedDayId == day.id ? nil : day.id
                                 }
+                            } label: {
+                                DayRow(
+                                    day: day,
+                                    isToday: Calendar.current.isDateInToday(day.date),
+                                    isExpanded: expandedDayId == day.id,
+                                    showDivider: index < astronomy.days.count - 1
+                                )
+                                .contentShape(Rectangle())
                             }
+                            .buttonStyle(.plain)
+                            .accessibilityAddTraits(expandedDayId == day.id ? .isSelected : [])
                         }
                     }
                 }
@@ -92,13 +100,24 @@ private struct DayRow: View {
     let isExpanded: Bool
     let showDivider: Bool
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var detailInset: CGFloat {
+        dynamicTypeSize.isAccessibilitySize ? 0 : 56
+    }
+
     var body: some View {
+        let dayLayout =
+            dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: 10))
+
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .center, spacing: 10) {
+            dayLayout {
                 Text(isToday ? "Today" : shortDay)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(isToday ? Color.orange : .primary)
-                    .frame(width: 46, alignment: .leading)
+                    .frame(width: detailInset == 0 ? nil : 46, alignment: .leading)
 
                 DayBar(
                     riseFraction: dayFraction(day.sunriseDate),
@@ -106,24 +125,29 @@ private struct DayRow: View {
                     nowFraction: isToday ? nowFraction() : nil
                 )
                 .frame(height: 18)
+                .accessibilityHidden(true)
             }
 
-            HStack {
-                Label(riseLabel, systemImage: "sunrise.fill")
-                    .foregroundStyle(.orange)
-                Spacer()
-                Text(durationLabel)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Label(setLabel, systemImage: "sunset.fill")
-                    .foregroundStyle(.indigo)
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    sunrise
+                    Spacer()
+                    daylight
+                    Spacer()
+                    sunset
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    sunrise
+                    sunset
+                    daylight
+                }
             }
             .font(.caption.weight(.medium))
-            .padding(.leading, 56)
+            .padding(.leading, detailInset)
 
             if isExpanded {
                 AstroDayDetail(day: day, isToday: isToday)
-                    .padding(.leading, 56)
+                    .padding(.leading, detailInset)
                     .padding(.top, 4)
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
@@ -133,6 +157,23 @@ private struct DayRow: View {
             }
         }
         .padding(.vertical, 6)
+    }
+
+    private var sunrise: some View {
+        Label(riseLabel, systemImage: "sunrise.fill")
+            .foregroundStyle(.orange)
+            .accessibilityLabel("Sunrise \(riseLabel)")
+    }
+
+    private var sunset: some View {
+        Label(setLabel, systemImage: "sunset.fill")
+            .foregroundStyle(.indigo)
+            .accessibilityLabel("Sunset \(setLabel)")
+    }
+
+    private var daylight: some View {
+        Text(durationLabel)
+            .foregroundStyle(.secondary)
     }
 
     private var shortDay: String {
@@ -171,7 +212,7 @@ private struct DayRow: View {
         return CGFloat(secs / 86_400)
     }
 
-    static func timeText(_ date: Date) -> String {
+    nonisolated static func timeText(_ date: Date) -> String {
         let f = DateFormatter()
         f.dateFormat = "h:mma"
         f.amSymbol = "am"

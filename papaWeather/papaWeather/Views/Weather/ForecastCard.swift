@@ -10,6 +10,7 @@ struct ForecastCard: View {
     let forecast: DailyForecastInfo?
     let debugSummary: String
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selectedDayId: String?
 
     private var days: [DailyForecastDay] { forecast.map { Array($0.days.prefix(7)) } ?? [] }
@@ -38,17 +39,20 @@ struct ForecastCard: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(alignment: .top, spacing: 2) {
                             ForEach(days) { day in
-                                ForecastDayColumn(
-                                    day: day,
-                                    weekMin: weekMin,
-                                    weekMax: weekMax,
-                                    isSelected: selectedDayId == day.id
-                                )
-                                .onTapGesture {
-                                    withAnimation(.spring(duration: 0.25)) {
+                                Button {
+                                    withAnimation(reduceMotion ? nil : .spring(duration: 0.25)) {
                                         selectedDayId = selectedDayId == day.id ? nil : day.id
                                     }
+                                } label: {
+                                    ForecastDayColumn(
+                                        day: day,
+                                        weekMin: weekMin,
+                                        weekMax: weekMax,
+                                        isSelected: selectedDayId == day.id
+                                    )
                                 }
+                                .buttonStyle(.plain)
+                                .accessibilityAddTraits(selectedDayId == day.id ? .isSelected : [])
                             }
                         }
                         .padding(.horizontal, 2)

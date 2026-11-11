@@ -8,6 +8,9 @@ import SwiftUI
 struct HourlyTabView: View {
     let hourly: HourlyForecastInfo?
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ScaledMetric(relativeTo: .body) private var currentStatWidth = 146.0
+
     var body: some View {
         if let hourly {
             VStack(spacing: 16) {
@@ -60,7 +63,7 @@ struct HourlyTabView: View {
 
                 Divider()
 
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: currentStatWidth), spacing: 10)], spacing: 10) {
                     statCell(icon: "drop.fill",      color: .blue,   label: "Rain Chance",  value: "\(hour.rainChance)%")
                     statCell(icon: "humidity.fill",  color: .teal,   label: "Humidity",     value: "\(hour.relativeHumidity)%")
                     statCell(icon: "wind",           color: .gray,   label: "Wind",         value: "\(hour.windDirection) \(hour.windSpeedKmh) km/h")
@@ -124,17 +127,20 @@ struct HourlyTabView: View {
 
                                 HStack(alignment: .top, spacing: 2) {
                                     ForEach(group.hours) { hour in
-                                        HourColumn(
-                                            hour: hour,
-                                            allMin: allMin,
-                                            allMax: allMax,
-                                            isSelected: selectedHourId == hour.id
-                                        )
-                                        .onTapGesture {
-                                            withAnimation(.spring(duration: 0.25)) {
+                                        Button {
+                                            withAnimation(reduceMotion ? nil : .spring(duration: 0.25)) {
                                                 selectedHourId = selectedHourId == hour.id ? nil : hour.id
                                             }
+                                        } label: {
+                                            HourColumn(
+                                                hour: hour,
+                                                allMin: allMin,
+                                                allMax: allMax,
+                                                isSelected: selectedHourId == hour.id
+                                            )
                                         }
+                                        .buttonStyle(.plain)
+                                        .accessibilityAddTraits(selectedHourId == hour.id ? .isSelected : [])
                                     }
                                 }
                             }

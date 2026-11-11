@@ -12,8 +12,13 @@ enum WeatherBackground {
     ) -> LinearGradient? {
         guard let hour else { return nil }
         let colors = colors(for: hour, colorScheme: colorScheme)
+        let palette = AppTheme.weather.palette(for: colorScheme)
+        let tintAmount = colorScheme == .dark ? 0.36 : 0.20
         return LinearGradient(
-            colors: colors,
+            colors: [
+                palette.backgroundTop.mix(with: colors[0], by: tintAmount),
+                palette.backgroundBase.mix(with: colors[1], by: tintAmount),
+            ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )

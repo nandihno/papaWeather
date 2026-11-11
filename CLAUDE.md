@@ -10,7 +10,8 @@ Build from the command line:
 ```bash
 xcodebuild -project papaWeather/papaWeather.xcodeproj \
            -scheme papaWeather \
-           -destination 'platform=iOS Simulator,name=iPhone 16' \
+           -destination 'generic/platform=iOS Simulator' \
+           CODE_SIGNING_ALLOWED=NO \
            build
 ```
 
@@ -64,7 +65,17 @@ The provider is selected via `@AppStorage("aiProvider")` and toggled in `Setting
 
 `AppTheme` / `ThemeSet` / `ThemePalette` provide a single source of truth for colours. `ThemePalette` is injected as an `EnvironmentKey` (`\.themePalette`) so any view can read it without prop drilling. Apply to a screen with `.screenTheme(AppTheme.weather)`. Apply to a card with `.transitCardStyle()`. The `Font.transit(_:weight:)` helper uses `.system(..., design: .rounded)` throughout.
 
-`WeatherBackground.gradient(for:colorScheme:)` returns a condition- and temperature-driven `LinearGradient` used as the dynamic screen background — it reads the current `HourlyForecastHour` icon descriptor and temperature.
+`WeatherBackground.gradient(for:colorScheme:)` blends the condition-driven colors into the light or dark palette for the weather tabs. The station conditions card uses a dark surface with light text in either appearance.
+
+### Adaptive weather UI
+
+- The Station tab stacks current conditions, the briefing, and trends at compact widths. When there is room, the overview and the trends scroll independently in two panes. On iOS 27.1 and later, SwiftUI's split `ArrangementView` places the panes on either side of an active fold. Unfolded layouts use one column at accessibility text sizes.
+- The native tab bar and toolbar move with the system. Warnings precedes Astro and the optional Radar tab so its badge stays visible when the system groups extra tabs under More. The selected tab, active location, briefing, and pressure guide state live outside the Station layout. Refresh is available in the toolbar and by pulling down on a weather tab.
+- Radar keeps the map full bleed. Its source, layer, and refresh controls stay together on one side when a vertical fold divides the display. The source and layer use menus so they fit narrow windows.
+
+When checking layout changes in Device Hub, run the app on a standard iPhone and on the Duo's outer display, then open and partially fold the inner display in both orientations. Switch tabs and expand the pressure guide before changing poses to check continuity. Check narrow Split View, accessibility text sizes, dark appearance, and a Radar provider configured with a test key. Verify that the location menu and Settings remain reachable in every pose.
+
+The simulator smoke test covered the Duo's outer, flat inner, and both partially folded layouts on iOS 27.2. It exercised tab and Settings continuity and the Radar source and layer controls. An iPhone 18 Pro running iOS 27.0 loaded weather for a simulated Melbourne location and displayed the Station, Hourly, Daily, Warnings, and Astro screens. The Station view was also checked in dark appearance at an accessibility text size. Physical devices, narrow Split View, VoiceOver, and live Radar tile data still need verification.
 
 ### State persistence
 

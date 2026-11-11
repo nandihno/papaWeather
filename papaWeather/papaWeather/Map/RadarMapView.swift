@@ -180,10 +180,9 @@ private func coordinate(from origin: CLLocationCoordinate2D,
 struct RadarMapView: View {
     @State private var viewModel = RadarMapViewModel()
     @State private var selectionStore = LocationSelectionStore.shared
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack {
             MapKitRadarView(
                 provider: viewModel.selectedProvider,
                 snapshot: viewModel.currentSnapshot,
@@ -198,24 +197,44 @@ struct RadarMapView: View {
                 loadingOverlay
             }
 
-            if let error = viewModel.errorMessage {
-                errorBanner(error)
+            GeometryReader { proxy in
+                let space = controlSpace(in: proxy)
+                VStack(alignment: .leading, spacing: 8) {
+                    mapControls
+                    Spacer(minLength: 8)
+                    if let error = viewModel.errorMessage {
+                        errorBanner(error)
+                    }
+                    tileLoadingIndicator
+                    if viewModel.selectedProvider.supportsAnimation {
+                        controlPanel
+                    }
+                }
+                .padding(12)
+                .frame(maxWidth: 480, alignment: .leading)
+                .frame(width: space.width, alignment: space.alignment)
+                .frame(maxWidth: .infinity, alignment: space.alignment)
             }
-
-            if viewModel.selectedProvider.supportsAnimation {
-                controlPanel
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 32)
-            }
-
-            refreshButton
-            tileLoadingIndicator
         }
         .task { await viewModel.loadSnapshot() }
         .onChange(of: selectionStore.selection) { _, _ in
             viewModel.handleSelectionChange()
         }
         .onDisappear { viewModel.stopAnimation() }
+    }
+
+    // The map can span the hinge. Keep the controls within one pane when the
+    // fold divides the screen side by side.
+    private func controlSpace(in proxy: GeometryProxy) -> (width: CGFloat, alignment: Alignment) {
+        if #available(iOS 27.1, *),
+            let fold = proxy.reservedRegions(kind: .division).first,
+            fold.frame.height > fold.frame.width
+        {
+            let leading = max(0, fold.frame.minX - fold.margins.leading)
+            let trailing = max(0, proxy.size.width - fold.frame.maxX - fold.margins.trailing)
+            return (max(leading, trailing), leading >= trailing ? .leading : .trailing)
+        }
+        return (proxy.size.width, .leading)
     }
 
     // MARK: - Provider Picker
@@ -229,8 +248,7 @@ struct RadarMapView: View {
                 Text(provider.displayName).tag(provider)
             }
         }
-        .pickerStyle(.segmented)
-        .frame(maxWidth: 180)
+        .pickerStyle(.menu)
     }
 
     // MARK: - Control Panel
@@ -240,10 +258,11 @@ struct RadarMapView: View {
             Button(action: viewModel.toggleAnimation) {
                 Image(systemName: viewModel.isAnimating ? "pause.fill" : "play.fill")
                     .font(.system(size: 20, weight: .semibold))
-                    .frame(width: 36, height: 36)
+                    .frame(width: 44, height: 44)
             }
             .buttonStyle(.plain)
             .foregroundStyle(.primary)
+            .accessibilityLabel(viewModel.isAnimating ? "Pause radar" : "Play radar")
 
             Slider(
                 value: Binding(
@@ -258,6 +277,7 @@ struct RadarMapView: View {
             )
             .tint(.cyan)
             .disabled(viewModel.isLoading)
+            .accessibilityLabel("Radar forecast time")
 
             Text(viewModel.formattedFrameTime)
                 .font(.transit(13, weight: .semibold))
@@ -282,105 +302,66 @@ struct RadarMapView: View {
         }
     }
 
-    // MARK: - Refresh Button
+    // MARK: - Map controls
 
-    private var refreshButton: some View {
-        VStack(spacing: 8) {
-            HStack {
+    private var mapControls: some View {
+        HStack(alignment: .top, spacing: 8) {
+            VStack(alignment: .leading, spacing: 8) {
                 providerPicker
-                    .padding(.top, 16)
-                    .padding(.leading, 16)
-                Spacer()
-                Button {
-                    Task { await viewModel.loadSnapshot() }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 16, weight: .semibold))
-                        .frame(width: 40, height: 40)
-                        .background { refreshButtonBackground }
+                if viewModel.selectedProvider == .openWeatherMap {
+                    layerPicker
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.primary)
-                .disabled(viewModel.isLoading)
-                .padding(.top, 16)
-                .padding(.trailing, 16)
             }
+            .padding(.horizontal, 8)
+            .frame(minHeight: 44)
+            .background { panelBackground }
 
-            if viewModel.selectedProvider == .openWeatherMap {
-                layerPicker
-                    .padding(.horizontal, 16)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+            Button {
+                Task { await viewModel.loadSnapshot() }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .font(.body.weight(.semibold))
+                    .frame(width: 44, height: 44)
+                    .background(.regularMaterial, in: Circle())
             }
-
-            Spacer()
+            .buttonStyle(.plain)
+            .foregroundStyle(.primary)
+            .disabled(viewModel.isLoading)
+            .accessibilityLabel("Refresh radar")
         }
-        .animation(.easeInOut(duration: 0.2), value: viewModel.selectedProvider)
     }
 
     private var layerPicker: some View {
-        HStack(spacing: 8) {
+        Picker(
+            "Weather layer",
+            selection: Binding(
+                get: { viewModel.selectedOWMLayer },
+                set: { viewModel.switchOWMLayer(to: $0) }
+            )
+        ) {
             ForEach(OWMLayer.allCases, id: \.self) { layer in
-                let isSelected = viewModel.selectedOWMLayer == layer
-                Button {
-                    viewModel.switchOWMLayer(to: layer)
-                } label: {
-                    Text(layer.displayName)
-                        .font(.transit(12, weight: isSelected ? .semibold : .regular))
-                        .foregroundStyle(isSelected ? .white : .primary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background {
-                            Capsule()
-                                .fill(isSelected ? Color.cyan : Color.primary.opacity(0.12))
-                        }
-                }
-                .buttonStyle(.plain)
-                .animation(.easeInOut(duration: 0.15), value: isSelected)
+                Text(layer.displayName).tag(layer)
             }
         }
-    }
-
-    @ViewBuilder
-    private var refreshButtonBackground: some View {
-        if #available(iOS 26, *) {
-            Circle()
-                .fill(.ultraThinMaterial)
-                .glassEffect(in: Circle())
-        } else {
-            Circle()
-                .fill(.ultraThinMaterial)
-        }
+        .pickerStyle(.menu)
     }
 
     // MARK: - Tile loading indicator
 
+    @ViewBuilder
     private var tileLoadingIndicator: some View {
-        VStack {
-            Spacer()
-            HStack {
-                if RadarTileTracker.shared.isLoading {
-                    HStack(spacing: 6) {
-                        ProgressView()
-                            .scaleEffect(0.75)
-                            .tint(.primary)
-                        Text(viewModel.selectedProvider.fetchingLabel)
-                            .font(.transit(12, weight: .medium))
-                            .foregroundStyle(.primary)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
-                    .background {
-                        Capsule()
-                            .fill(.ultraThinMaterial)
-                    }
-                    .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .leading)))
-                }
-                Spacer()
+        if RadarTileTracker.shared.isLoading {
+            HStack(spacing: 6) {
+                ProgressView()
+                    .controlSize(.small)
+                Text(viewModel.selectedProvider.fetchingLabel)
+                    .font(.footnote.weight(.medium))
             }
-            .padding(.leading, 16)
-            .padding(.bottom, 100)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(.regularMaterial, in: Capsule())
+            .allowsHitTesting(false)
         }
-        .animation(.easeInOut(duration: 0.25), value: RadarTileTracker.shared.isLoading)
     }
 
     // MARK: - Overlays
@@ -414,7 +395,5 @@ struct RadarMapView: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(.ultraThinMaterial)
         }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 120)
     }
 }

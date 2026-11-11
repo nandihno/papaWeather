@@ -7,8 +7,13 @@ import SwiftUI
 import AppIntents
 import FoundationModels
 import CoreLocation
+import WidgetKit
 
 struct WeatherView: View {
+    private enum WeatherTab: Hashable {
+        case station, hourly, daily, warnings, astronomy, radar
+    }
+
     @AppStorage("claudeApiKey") private var claudeApiKey: String = ""
     @AppStorage("aiProvider") private var aiProviderRaw: String = AIProvider.appleIntelligence.rawValue
     @AppStorage("typesafeEnabled") private var typesafeEnabled: Bool = false
@@ -22,7 +27,11 @@ struct WeatherView: View {
     @AppStorage(WeeklyActivityPlannerStorage.saturday) private var saturdayActivity: String = ""
     @AppStorage(WeeklyActivityPlannerStorage.sunday) private var sundayActivity: String = ""
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var selectionStore = LocationSelectionStore.shared
+    @State private var selectedTab: WeatherTab = .station
+    @State private var showPressureGuide = false
     @State private var weather = MockWeatherService.mockWeather()
     @State private var forecastInfo: DailyForecastInfo?
     @State private var hourlyForecast: HourlyForecastInfo?
@@ -31,7 +40,7 @@ struct WeatherView: View {
     @State private var forecastSummary = "No forecast loaded yet."
     @State private var isLoading = false
     @State private var hasLoaded = false
-    @State private var statusMessage = "Tap Fetch weather to load current conditions and 7-day forecast."
+    @State private var statusMessage = "Weather hasn’t loaded yet."
     @State private var usingFallbackData = false
     @State private var isAnalysing = false
     @State private var analysisResult: String? = nil
@@ -45,7 +54,6 @@ struct WeatherView: View {
     @State private var isAnalysingHumidity = false
     @State private var showSettings = false
     @State private var locality: String? = nil
-    @State private var fetchTime: String? = nil
 
     private var appleIntelligenceAvailable: Bool {
         SystemLanguageModel.default.availability == .available
@@ -64,6 +72,9 @@ struct WeatherView: View {
     }
     private var conditionBackground: LinearGradient? {
         WeatherBackground.gradient(for: hourlyForecast?.current, colorScheme: colorScheme)
+    }
+    private var weatherCanvas: some View {
+        (conditionBackground ?? palette.screenBackground).ignoresSafeArea()
     }
     private var stationIsNight: Bool {
         if let isNight = hourlyForecast?.current?.isNight {
@@ -101,69 +112,88 @@ struct WeatherView: View {
         }
     }
 
+    private var locationTitle: String {
+        locality ?? selectionStore.selection.savedLocation?.name ?? "Weather"
+    }
+
     var body: some View {
-        NavigationStack {
-            TabView {
-                stationTab
-                    .tabItem {
-                        Label("Station", systemImage: "thermometer.medium")
-                    }
-
-                hourlyTab
-                    .tabItem {
-                        Label("Hourly", systemImage: "clock")
-                    }
-
-                dailyTab
-                    .tabItem {
-                        Label("Daily", systemImage: "calendar")
-                    }
-
-                astroTab
-                    .tabItem {
-                        Label("Astro", systemImage: "sun.horizon.fill")
-                    }
-
-                warningsTab
-                    .tabItem {
-                        Label("Warnings", systemImage: "exclamationmark.triangle.fill")
-                    }
-                    .badge(warnings?.count ?? 0)
-
-                if radarEnabled {
-                    RadarMapView()
-                        .tabItem {
-                            Label("Radar", systemImage: "cloud.rain.fill")
-                        }
-                }
+        TabView(selection: $selectedTab) {
+            Tab("Station", systemImage: "thermometer.medium", value: .station) {
+                weatherDestination { stationTab }
             }
-            .navigationTitle("Weather")
-            .navigationBarTitleDisplayMode(.inline)
-            .task {
-                guard !hasLoaded else { return }
-                await performFetch()
+            Tab("Hourly", systemImage: "clock", value: .hourly) {
+                weatherDestination { hourlyTab }
             }
-            .sheet(isPresented: $showAnalysis) { analysisSheet }
-            .sheet(isPresented: $showSettings) { SettingsView() }
-            .onChange(of: selectionStore.selection) { _, _ in
-                fetchWeather()
+            Tab("Daily", systemImage: "calendar", value: .daily) {
+                weatherDestination { dailyTab }
             }
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    locationSwitcher
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showSettings = true } label: {
-                        Image(systemName: "gearshape.fill")
-                    }
+            Tab("Warnings", systemImage: "exclamationmark.triangle.fill", value: .warnings) {
+                weatherDestination { warningsTab }
+            }
+            .badge(warnings?.count ?? 0)
+            Tab("Astro", systemImage: "sun.horizon.fill", value: .astronomy) {
+                weatherDestination { astroTab }
+            }
+
+            if radarEnabled {
+                Tab("Radar", systemImage: "cloud.rain.fill", value: .radar) {
+                    weatherDestination { RadarMapView() }
                 }
             }
         }
-        .screenTheme(AppTheme.weather, backgroundOverride: conditionBackground)
+        .task {
+            guard !hasLoaded else { return }
+            await performFetch()
+        }
+        .sheet(isPresented: $showAnalysis) { analysisSheet }
+        .sheet(isPresented: $showSettings) { SettingsView() }
+        .onChange(of: selectionStore.selection) { _, _ in
+            fetchWeather()
+        }
+        .onChange(of: radarEnabled) { _, enabled in
+            if !enabled, selectedTab == .radar { selectedTab = .station }
+        }
+        .screenTheme(AppTheme.weather)
+        .onOpenURL { url in
+            if url.host == "station" || url.path.contains("station") {
+                selectedTab = .station
+            } else if url.host == "hourly" || url.path.contains("hourly") {
+                selectedTab = .hourly
+            }
+        }
         .appEntityIdentifier(EntityIdentifier(for: currentLocationEntity))
-        .animation(.easeInOut(duration: 0.6), value: hourlyForecast?.current?.iconDescriptor)
-        .animation(.easeInOut(duration: 0.6), value: hourlyForecast?.current?.isNight)
-        .animation(.easeInOut(duration: 0.6), value: hourlyForecast?.current?.temp)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.6), value: hourlyForecast?.current?.iconDescriptor)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.6), value: hourlyForecast?.current?.isNight)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.6), value: hourlyForecast?.current?.temp)
+    }
+
+    private func weatherDestination<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        NavigationStack {
+            content()
+                .navigationTitle(locationTitle)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        locationSwitcher
+                    }
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        Button(action: fetchWeather) {
+                            if isLoading {
+                                ProgressView().accessibilityLabel("Fetching weather")
+                            } else {
+                                Label("Refresh weather", systemImage: "arrow.clockwise")
+                            }
+                        }
+                        .disabled(isLoading)
+
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Label("Settings", systemImage: "gearshape")
+                        }
+                    }
+                }
+        }
     }
 
     // MARK: - Location Switcher
@@ -193,129 +223,131 @@ struct WeatherView: View {
                 Label("Add or Edit Locations…", systemImage: "plus.circle")
             }
         } label: {
-            VStack(spacing: 1) {
-                HStack(spacing: 4) {
-                    Image(systemName: isDeviceSelected ? "location.fill" : "mappin.circle.fill")
-                        .font(.system(size: 10))
-                        .foregroundStyle(palette.textSecondary)
-                    Text(locality ?? "Weather")
-                        .font(.transit(20, weight: .bold))
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(palette.textSecondary)
-                }
-                if let fetchTime {
-                    Text(fetchTime)
-                        .font(.transit(13, weight: .medium))
-                        .foregroundStyle(palette.textSecondary)
-                }
-            }
+            Label("Locations", systemImage: isDeviceSelected ? "location.fill" : "mappin.circle.fill")
         }
-        .tint(palette.textPrimary)
+        .accessibilityValue(locationTitle)
     }
 
     private var stationTab: some View {
-        refreshableWeatherTab(spacing: 24) {
-            fetchButton
+        GeometryReader { proxy in
+            let wide = proxy.size.width >= 640 && !dynamicTypeSize.isAccessibilitySize
+            if #available(iOS 27.1, *),
+                let fold = proxy.reservedRegions(kind: .division).first
+            {
+                let axis: Axis.Set = fold.frame.width > fold.frame.height ? .vertical : .horizontal
+                ArrangementView {
+                    weatherScroll { stationOverview }
+                } secondary: {
+                    weatherScroll { stationTrends }
+                }
+                .arrangementViewStyle(.split.axes(axis))
+            } else if wide {
+                HStack(spacing: 0) {
+                    weatherScroll { stationOverview }
+                    weatherScroll { stationTrends }
+                }
+            } else {
+                weatherScroll {
+                    stationOverview
+                    stationTrends
+                }
+            }
+        }
+        .background { weatherCanvas }
+    }
+
+    private var stationOverview: some View {
+        VStack(spacing: 16) {
             statusBanner
-            WeatherCard(
-                weather: weather,
-                title: "Weather Station",
-                isNight: stationIsNight
-            )
+            WeatherCard(weather: weather, isNight: stationIsNight)
             weatherAnalyseCard
         }
     }
 
+    private var stationTrends: some View {
+        StationTrendsCard(weather: weather, showPressureGuide: $showPressureGuide)
+    }
+
     private var hourlyTab: some View {
-        refreshableWeatherTab(spacing: 16) {
+        refreshableWeatherTab {
             HourlyTabView(hourly: hourlyForecast)
         }
     }
 
     private var dailyTab: some View {
-        refreshableWeatherTab(spacing: 24) {
+        refreshableWeatherTab {
             ForecastCard(forecast: forecastInfo, debugSummary: forecastSummary)
         }
     }
 
     private var astroTab: some View {
-        refreshableWeatherTab(spacing: 24) {
+        refreshableWeatherTab {
             AstroTabView(astronomy: astronomyInfo)
         }
     }
 
     private var warningsTab: some View {
-        refreshableWeatherTab(spacing: 16) {
+        refreshableWeatherTab {
             WarningsTabView(warnings: warnings)
         }
     }
 
     private func refreshableWeatherTab<Content: View>(
-        spacing: CGFloat,
-        @ViewBuilder content: @escaping () -> Content
+        @ViewBuilder content: () -> Content
     ) -> some View {
-        GeometryReader { proxy in
-            ScrollView {
-                VStack(spacing: spacing) {
-                    content()
-                }
-                .frame(maxWidth: .infinity)
-                .frame(minHeight: proxy.size.height + 1, alignment: .top)
-                .padding()
-            }
-            .scrollContentBackground(.hidden)
-            .scrollBounceBehavior(.always, axes: .vertical)
-            .refreshable { fetchWeather() }
-        }
-        .background((conditionBackground ?? palette.screenBackground).ignoresSafeArea())
+        weatherScroll(content: content)
+            .background { weatherCanvas }
     }
 
-    private var fetchButton: some View {
-        Button(action: fetchWeather) {
-            HStack(spacing: 8) {
-                if isLoading {
-                    ProgressView().tint(Color.black.opacity(0.82)).scaleEffect(0.85)
-                } else {
-                    Image(systemName: "arrow.clockwise")
-                }
-                Text(isLoading ? "Fetching..." : "Fetch weather")
+    private func weatherScroll<Content: View>(
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                content()
             }
+            .frame(maxWidth: 700)
+            .padding(16)
+            .frame(maxWidth: .infinity)
         }
-        .buttonStyle(TransitPrimaryButtonStyle())
-        .opacity(isLoading ? 0.82 : 1)
-        .disabled(isLoading)
-        .animation(.easeInOut(duration: 0.2), value: isLoading)
+        .scrollContentBackground(.hidden)
+        .scrollBounceBehavior(.always, axes: .vertical)
+        .refreshable { await performFetch() }
     }
 
     private var statusBanner: some View {
-        Label {
-            Text(statusMessage)
-        } icon: {
-            Image(systemName: usingFallbackData ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-                .foregroundStyle(usingFallbackData ? AppTheme.warning : AppTheme.success)
+        VStack(alignment: .leading, spacing: 4) {
+            Label {
+                Text(isLoading ? "Refreshing weather…" : statusMessage)
+            } icon: {
+                Image(systemName: usingFallbackData ? "exclamationmark.triangle.fill" : "clock")
+                    .foregroundStyle(usingFallbackData ? .orange : palette.textSecondary)
+                    .accessibilityHidden(true)
+            }
+            if !hasLoaded && !weather.observations.isEmpty {
+                Text("Showing sample station readings")
+            }
         }
-        .font(.transit(15, weight: .medium))
+        .font(.footnote.weight(.medium))
         .foregroundStyle(palette.textSecondary)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 2)
+        .padding(.horizontal, 4)
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - AI Weather Analysis Card
 
     private var weatherAnalyseCard: some View {
-        ZStack {
-            palette.mutedPanelBackground
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-
-            VStack(alignment: .leading, spacing: 10) {
+        CardContainer {
+            VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 8) {
                     Image(systemName: "cloud.sun.bolt.fill")
                         .font(.title3)
                         .symbolRenderingMode(.multicolor)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text("AI Weather Briefing")
-                            .font(.transit(18, weight: .bold))
+                        Text("Weather Briefing")
+                            .font(.headline)
+                            .accessibilityAddTraits(.isHeader)
                         Text(poweredByLabel)
                             .font(.caption)
                             .foregroundStyle(palette.textSecondary)
@@ -329,16 +361,12 @@ struct WeatherView: View {
                 }
 
                 Button(action: analyseWeather) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "sparkles")
-                        Text(hasLoaded ? "Get My Weather Briefing" : "Load forecast first")
-                    }
+                    Label(hasLoaded ? "Get Weather Briefing" : "Load forecast first", systemImage: "sparkles")
+                        .frame(minHeight: 32)
                 }
-                .buttonStyle(TransitPrimaryButtonStyle())
-                .opacity(!aiIsAvailable || !hasLoaded ? 0.45 : 1)
+                .buttonStyle(.bordered)
                 .disabled(!aiIsAvailable || !hasLoaded)
             }
-            .padding(16)
         }
     }
 
@@ -616,6 +644,7 @@ struct WeatherView: View {
             if bundle.warnings != nil {
                 WeatherWarningSpotlightIndexer.refreshInBackground()
             }
+            WidgetDataStore.saveSnapshot(bundle: bundle)
 
             if let forecast = bundle.forecast {
                 forecastSummary = forecast.debugSummary(limit: 7)
@@ -625,9 +654,8 @@ struct WeatherView: View {
                 forecastSummary = "Forecast unavailable for current location."
             }
 
-            if let name = bundle.locality { locality = name }
+            locality = bundle.locality
             let stamp = Date().formatted(date: .omitted, time: .shortened)
-            fetchTime = "Updated \(stamp)"
             statusMessage = "Last updated at \(stamp)"
             usingFallbackData = false
             analysisResult = nil
@@ -636,7 +664,6 @@ struct WeatherView: View {
         } catch is CancellationError {
             return
         } catch {
-            let stamp = Date().formatted(date: .omitted, time: .shortened)
             if !hasLoaded {
                 weather = MockWeatherService.mockWeather()
                 forecastInfo = nil
@@ -645,7 +672,6 @@ struct WeatherView: View {
             }
             forecastSummary = "Forecast unavailable (\(error.localizedDescription))"
             statusMessage = "Refresh failed: \(error.localizedDescription)"
-            fetchTime = "Refresh failed \(stamp)"
             usingFallbackData = true
             print("✕ Weather refresh failed: \(error.localizedDescription)")
         }

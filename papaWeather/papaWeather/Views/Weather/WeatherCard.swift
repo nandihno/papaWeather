@@ -8,8 +8,114 @@ import Charts
 
 struct WeatherCard: View {
     let weather: WeatherInfo
-    var title: String = "Weather"
-    var isNight = false
+    let isNight: Bool
+
+    @Environment(\.themePalette) private var palette
+    @ScaledMetric(relativeTo: .largeTitle) private var temperatureSize = 60.0
+
+    var body: some View {
+        let latest = weather.observations.first
+
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Weather Station", systemImage: "sensor")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.84))
+
+            Text(weather.stationName)
+                .font(.title2.weight(.semibold))
+                .accessibilityAddTraits(.isHeader)
+
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: 16) {
+                    conditions(latest)
+                    Spacer(minLength: 0)
+                    conditionSymbol(latest)
+                }
+                VStack(alignment: .leading, spacing: 12) {
+                    conditionSymbol(latest)
+                    conditions(latest)
+                }
+            }
+
+            if let latest {
+                let humidity = metric("Humidity", value: "\(latest.relHumidity)%", symbol: "humidity.fill")
+                let wind = metric("Wind", value: "\(latest.windDir) \(latest.windSpeedKmh) km/h", symbol: "wind")
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 10) {
+                        humidity
+                        wind
+                    }
+                    VStack(spacing: 10) {
+                        humidity
+                        wind
+                    }
+                }
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .foregroundStyle(.white)
+        .background {
+            let blue = Color(red: 0.06, green: 0.26, blue: 0.42)
+            let background = LinearGradient(
+                colors: [blue.mix(with: palette.accent, by: 0.12), Color(red: 0.03, green: 0.10, blue: 0.20)],
+                startPoint: .topTrailing,
+                endPoint: .bottomLeading
+            )
+            RoundedRectangle(cornerRadius: 28).fill(background)
+        }
+    }
+
+    private func conditions(_ latest: WeatherObservation?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let latest {
+                let airTemperature = latest.airTemp.formatted(.number.precision(.fractionLength(1)))
+                Text("\(airTemperature)°C")
+                    .font(.system(size: temperatureSize, weight: .light, design: .rounded))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+                    .accessibilityLabel("Air temperature \(airTemperature) degrees Celsius")
+                Text(latest.cloud)
+                    .font(.headline)
+                Text("Feels like \(latest.apparentTemp, format: .number.precision(.fractionLength(1)))°C")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.84))
+            } else {
+                Text("No station readings available")
+                    .font(.headline)
+            }
+        }
+    }
+
+    private func conditionSymbol(_ latest: WeatherObservation?) -> some View {
+        Image(systemName: latest?.symbolName(isNight: isNight) ?? "cloud")
+            .font(.system(size: 49, weight: .medium))
+            .symbolRenderingMode(.palette)
+            .foregroundStyle(.white, isNight ? Color.cyan : Color.yellow)
+            .accessibilityHidden(true)
+    }
+
+    private func metric(_ title: String, value: String, symbol: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label(title, systemImage: symbol)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.white.opacity(0.84))
+            Text(value)
+                .font(.subheadline.weight(.semibold))
+                .monospacedDigit()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 14))
+        .accessibilityElement(children: .combine)
+    }
+}
+
+struct StationTrendsCard: View {
+    let weather: WeatherInfo
+    @Binding var showPressureGuide: Bool
+
     private enum TemperatureSeries: CaseIterable {
         case feelsLike
         case airTemp
@@ -46,18 +152,13 @@ struct WeatherCard: View {
         let observation: WeatherObservation
     }
 
-    private var latest: WeatherObservation? { weather.observations.first }
     private var chartObs: [WeatherObservation] { Array(weather.observations.reversed()) }
     private var chartPoints: [ChartPoint] {
         chartObs.enumerated().map { offset, obs in ChartPoint(id: obs.id, index: offset, observation: obs) }
     }
     private var xAxisIndices: [Int] {
-        guard !chartPoints.isEmpty else { return [] }
-        let step = max(chartPoints.count / 6, 1)
-        var indices = Array(stride(from: 0, to: chartPoints.count, by: step))
-        let lastIndex = chartPoints.count - 1
-        if indices.last != lastIndex { indices.append(lastIndex) }
-        return indices
+        let last = weather.observations.count - 1
+        return last > 1 ? [0, last / 2, last] : Array(weather.observations.indices)
     }
 
     private func formattedAxisTime(_ raw: String) -> String {
@@ -88,55 +189,23 @@ struct WeatherCard: View {
     var body: some View {
         CardContainer {
             VStack(alignment: .leading, spacing: 12) {
-                Label(title, systemImage: "cloud.sun.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(weather.stationName)
-                            .font(.body)
+                VStack(alignment: .leading, spacing: 4) {
+                    Label("Station Trends", systemImage: "chart.xyaxis.line")
+                        .font(.headline)
+                        .accessibilityAddTraits(.isHeader)
+                    if weather.observations.count >= 2 {
+                        Text("Last 24 hours")
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
-
-                        HStack(alignment: .firstTextBaseline, spacing: 2) {
-                            Text(latest.map { String(format: "%.1f", $0.apparentTemp) } ?? "--")
-                                .font(.system(size: 52, weight: .thin))
-                            Text("°C")
-                                .font(.title3)
-                                .foregroundStyle(.secondary)
-                                .padding(.top, 8)
-                        }
-
-                        Text(latest?.cloud ?? "--")
-                            .font(.body)
-                            .foregroundStyle(.secondary)
-
-                        if let obs = latest {
-                            HStack(spacing: 8) {
-                                Label(String(format: "%.1f°", obs.airTemp), systemImage: "thermometer.medium")
-                                    .foregroundStyle(.orange)
-                                Label("\(obs.relHumidity)%", systemImage: "drop.fill")
-                                    .foregroundStyle(.blue)
-                                Label("\(obs.windDir) \(obs.windSpeedKmh) km/h", systemImage: "wind")
-                                    .foregroundStyle(.teal)
-                            }
-                            .font(.caption)
-                        }
                     }
-
-                    Spacer()
-
-                    Image(systemName: latest?.symbolName(isNight: isNight) ?? (isNight ? "moon.stars.fill" : "sun.max.fill"))
-                        .font(.system(size: 52))
-                        .symbolRenderingMode(.multicolor)
                 }
-
-                if chartObs.count >= 2 {
+                if weather.observations.count >= 2 {
                     Divider()
-                    Label("Last 24 hours", systemImage: "chart.xyaxis.line")
-                        .font(.subheadline.weight(.semibold))
+                    observationCharts
+                } else {
+                    Text("There aren’t enough station readings to show trends yet.")
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    observationCharts.padding(.top, 6)
                 }
             }
         }
@@ -161,7 +230,10 @@ struct WeatherCard: View {
 
             chartSection(title: "Pressure (hPa)") { pressureChart }
             chartSection(title: "Humidity (%)") { humidityChart }
-            pressureGuidance
+            DisclosureGroup("Pressure guide", isExpanded: $showPressureGuide) {
+                pressureGuidance.padding(.top, 6)
+            }
+            .font(.subheadline.weight(.medium))
         }
     }
 
@@ -269,9 +341,6 @@ struct WeatherCard: View {
 
     private var pressureGuidance: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label("Pressure Guide", systemImage: "info.circle.fill")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
             Text("Standard Pressure: 1013.25 hPa is considered standard atmospheric pressure at sea level.")
                 .font(.caption).foregroundStyle(.secondary)
             Text("High Pressure (Anticyclone): Values above 1013 hPa generally indicate stable, dry, and sunny weather.")
@@ -283,4 +352,15 @@ struct WeatherCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
     }
+}
+
+#Preview("Station cards") {
+    ScrollView {
+        VStack(spacing: 16) {
+            WeatherCard(weather: MockWeatherService.mockWeather(), isNight: false)
+            StationTrendsCard(weather: MockWeatherService.mockWeather(), showPressureGuide: .constant(false))
+        }
+        .padding()
+    }
+    .screenTheme(AppTheme.weather)
 }
